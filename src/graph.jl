@@ -35,7 +35,7 @@ function find_or_add!(graph::Graph, name::String)
     return n
 end
 
-function add_link!(graph::Graph, src_name::String, dst_name::String, cost::Float64)
+function add_link!(graph::Graph, src_name::String, dst_name::String, cost::Float64,mean::Float64,variance::Float64)
     u = find_or_add!(graph, src_name)
     v = find_or_add!(graph, dst_name)
     graph.nodes[u].links[v] = Link(cost, 0)

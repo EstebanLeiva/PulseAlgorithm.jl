@@ -143,7 +143,8 @@ function load_graph_from_ta(tntp_file_dir,network_name)
     for i in 1:length(ta_data.start_node)
         start = string(ta_data.start_node[i])
         dst = string(ta_data.end_node[i])
-        add_link!(new_graph, start, dst, ta_data.free_flow_time[i])
+        #Check the variance for the test cases
+        add_link!(new_graph, start, dst, ta_data.link_length[i],ta_data.free_flow_time[i],0.1)
     end
     return new_graph
 end
