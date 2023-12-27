@@ -1,4 +1,3 @@
-include("graph.jl")
 #Taken from the TrafficAssignment.jl library
 mutable struct TA_Data
     network_name::String

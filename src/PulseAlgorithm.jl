@@ -4,7 +4,9 @@ using Random
 using CSV
 using DataFrames
 
-include("data_loader.jl")
 include("graph.jl")
+include("data_loader.jl")
+include("s_alpha_pulse.jl")
+
 
 end

@@ -1,6 +1,8 @@
 struct Link
-    cost::Int
-    value::Int
+    cost::Float64
+    mean::Float64
+    variance::Float64
+    value::Float64
 end
 
 mutable struct Node
