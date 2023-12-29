@@ -122,7 +122,7 @@ end
 function load_covariance_dictionary(covariance_dir)
     #The CSV file should have the columns start_node_1, end_node_1, start_node_2,end_node_2, covariance
     df = CSV.File(covariance_dir) |> DataFrame
-    covariance_dict = Dict{Tuple{String, String}, Float64}()
+    covariance_dict = Dict{Tuple{Int, Int, Int, Int}, Float64}()
 
     for row in eachrow(df)
         start1 = row.start_node_1
