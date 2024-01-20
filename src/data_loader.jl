@@ -1,4 +1,3 @@
-include("graph.jl")
 #Taken from the TrafficAssignment.jl library
 mutable struct TA_Data
     network_name::String
@@ -117,13 +116,13 @@ end
 #Our own functions
 struct DataLoader
     graph::Graph
-    covariance_dict::Dict{Tuple{String,String}, Float64}
+    covariance_dict::Dict{Tuple{Int, Int, Int, Int}, Float64}
 end
 
 function load_covariance_dictionary(covariance_dir)
-    #The CSV file should have the columns start_node_1, end_node_1, start_node_2,end_node_2, covariance
+    #The CSV file should have the columns start_node_1, end_node_1, start_node_2, end_node_2, covariance
     df = CSV.File(covariance_dir) |> DataFrame
-    covariance_dict = Dict{Tuple{String, String}, Float64}()
+    covariance_dict = Dict{Tuple{Int, Int, Int, Int}, Float64}()
 
     for row in eachrow(df)
         start1 = row.start_node_1
@@ -131,8 +130,8 @@ function load_covariance_dictionary(covariance_dir)
         start2 = row.start_node_2
         end2 = row.end_node_2
         value = row.covariance
-        key = (start1,end1,start2,end2)
-        result_dict[key] = value
+        key = (start1, end1, start2, end2)
+        covariance_dict[key] = value
     end
     
     return covariance_dict
@@ -142,9 +141,13 @@ function load_graph_from_ta(tntp_file_dir,network_name)
     ta_data = load_ta_network(tntp_file_dir,network_name)
     new_graph = Graph(Dict{Int, Node}(), Dict{String, Int}())
     for i in 1:length(ta_data.start_node)
+        find_or_add!(new_graph, string(ta_data.start_node[i]))
+    end
+    for i in 1:length(ta_data.start_node)
         start = string(ta_data.start_node[i])
         dst = string(ta_data.end_node[i])
-        add_link!(new_graph, start, dst, ta_data.free_flow_time[i])
+        #Check the variance for the test cases: here we put 1 for all
+        add_link!(new_graph, start, dst, ta_data.link_length[i], ta_data.free_flow_time[i], 1.0)
     end
     return new_graph
 end
@@ -155,8 +158,6 @@ function load_data(tntp_file_dir,network_name,covariance_dir)
 
     graph = load_graph_from_ta(tntp_file_dir,network_name)
     covariance_dict = load_covariance_dictionary(covariance_dir)
-
-    assert(length(keys(dict)) == 10, "Number of links must be the same")
 
     return DataLoader(graph,covariance_dict)
 end

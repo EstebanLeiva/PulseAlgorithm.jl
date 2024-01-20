@@ -1,6 +1,8 @@
-struct Link
-    cost::Int
-    value::Int
+mutable struct Link
+    cost::Float64
+    mean::Float64
+    variance::Float64
+    value::Float64
 end
 
 mutable struct Node
@@ -33,11 +35,21 @@ function find_or_add!(graph::Graph, name::String)
     return n
 end
 
-function add_link!(graph::Graph, src_name::String, dst_name::String, cost::Float64)
+function add_link!(graph::Graph, src_name::String, dst_name::String, cost::Float64, mean::Float64, variance::Float64)
     u = find_or_add!(graph, src_name)
     v = find_or_add!(graph, dst_name)
-    graph.nodes[u].links[v] = Link(cost, 0)
+    graph.nodes[u].links[v] = Link(cost, mean, variance, 0)
     if false # Set to your condition for directed (false) or undirected (true) graph
-        graph.nodes[v].links[u] = Link(cost, 0)
+        graph.nodes[v].links[u] = Link(cost, mean, variance, 0)
     end
+end
+
+function get_links(graph::Graph)
+    links = Vector{Tuple{Int, Int}}()
+    for (u, node) in graph.nodes
+        for v in keys(node.links)
+            push!(links, (u, v))
+        end
+    end
+    return links
 end
