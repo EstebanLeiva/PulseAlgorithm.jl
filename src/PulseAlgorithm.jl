@@ -4,11 +4,12 @@ using Distributions
 using Random 
 using CSV
 using DataFrames
+using DataStructures
 
 include("graph.jl")
 include("data_loader.jl")
-include("minimum_spanning_tree.jl")
+include("dijkstra.jl")
 include("s_alpha_pulse.jl")
-
+include("instance_generator.jl")
 
 end
