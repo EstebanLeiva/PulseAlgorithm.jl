@@ -5,6 +5,7 @@ using Random
 using CSV
 using DataFrames
 using DataStructures
+using Distributions
 
 include("graph.jl")
 include("data_loader.jl")

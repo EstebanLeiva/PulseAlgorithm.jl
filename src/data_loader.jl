@@ -146,8 +146,7 @@ function load_graph_from_ta(tntp_file_dir,network_name)
     for i in 1:length(ta_data.start_node)
         start = string(ta_data.start_node[i])
         dst = string(ta_data.end_node[i])
-        #Check the variance for the test cases: here we put 1 for all
-        add_link!(new_graph, start, dst, ta_data.link_length[i], ta_data.free_flow_time[i], 1.0)
+        add_link!(new_graph, start, dst, ta_data.link_length[i], ta_data.free_flow_time[i], ta_data.free_flow_time[i]*rand(Uniform(0,1))) # random CV * mean time
     end
     return new_graph
 end

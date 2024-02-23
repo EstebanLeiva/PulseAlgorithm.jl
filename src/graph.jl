@@ -53,3 +53,13 @@ function get_links(graph::Graph)
     end
     return links
 end
+
+function get_links_info(graph::Graph)
+    links = Vector{Tuple{Int, Int, Float64, Float64, Float64}}()
+    for (u, node) in graph.nodes
+        for (v,link) in node.links
+            push!(links, (u, v, link.cost, link.mean, link.variance))
+        end
+    end
+    return links
+end

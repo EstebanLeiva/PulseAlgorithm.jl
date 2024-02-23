@@ -28,8 +28,10 @@ function dijkstra(graph::Graph, target_node::String, path::String)
                 new_cost = cost[current_node] + link.variance
             elseif path == "mean"
                 new_cost = cost[current_node] + link.mean
+            elseif path == "cost"
+                new_cost = cost[current_node] + link.cost
             else
-                error("Unsupported path: $path. Choose 'variance' or 'mean'.")
+                error("Unsupported path: $path. Choose 'variance', 'mean', or 'cost'.")
             end
 
             if new_cost < cost[neighbor]
