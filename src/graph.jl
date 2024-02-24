@@ -24,7 +24,7 @@ function create_node!(graph::Graph, name::String)
 end
 
 function find(graph::Graph, name::String)
-    return get(graph.name_to_index, name,-1)
+    return get(graph.name_to_index, name, -1)
 end
 
 function find_or_add!(graph::Graph, name::String)

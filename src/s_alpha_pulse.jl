@@ -32,7 +32,8 @@ end
 # Check Feasibility (true if feasible, false otherwise)
 function C_Feasibility(sp::SPulseGraph, current_node::Int, mean_path::Float64, variance_path::Float64, covariance_term_path::Float64)
     bool = true
-    dist = Normal(mean_path + sp.mean_costs[current_node], variance_path + covariance_term_path + sp.variance_costs[current_node])
+    variance =  variance_path + covariance_term_path + sp.variance_costs[current_node]
+    dist = Normal(mean_path + sp.mean_costs[current_node], √variance)
     prob = cdf(dist, sp.T_max)
     if prob < sp.α
         bool = false
@@ -44,7 +45,7 @@ end
 # Check Bounds (true if less than B, false otherwise)
 function C_Bounds(sp::SPulseGraph, current_node::Int, cost::Float64, path::Vector{Int})
     bool = false
-    if cost + sp.minimum_costs[current_node] <= sp.B #falta revisar si la implementacion del dikstra bota que el minimum cost del target node es 0
+    if cost + sp.minimum_costs[current_node] <= sp.B 
         if current_node == sp.G.name_to_index[sp.target_node]
             sp.B = cost
             new_path = copy(path)
@@ -74,7 +75,6 @@ function pulse(sp::SPulseGraph, current_node::Int, cost::Float64, mean_path::Flo
                         variance_path = variance_path + link_dict[reachable_node].variance
                         covariance_term_path = covariance_term_path + calculate_covariance_term(sp, reachable_node, inside_path)
                         pulse(sp, reachable_node, cost, mean_path, variance_path, covariance_term_path, inside_path)
-                
                     end
                 end
             end
@@ -90,9 +90,9 @@ function calculate_covariance_term(sp::SPulseGraph, reachable_node::Int, path::V
         current_node = reachable_node
         covariance_sum = 0.0
         for i in 1:n-1
-            covariance_sum += sp.covariance_dict[(path[i], path[i+1], last_node, current_node)]
+            covariance_sum += 2 * sp.covariance_dict[(path[i], path[i+1], last_node, current_node)]
         end
-        return 2*covariance_sum
+        return covariance_sum
     else
         return 0.0
     end
