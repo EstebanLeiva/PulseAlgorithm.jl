@@ -4,4 +4,4 @@
 
 ## Project Overview:
 
-This project aims to implement the PulseAlgorithm in the Julia programming language to find the shortest alpha reliable path with consideration for link travel correlation. By incorporating link travel correlation, the algorithm becomes even more powerful in predicting and optimizing routes under real-world conditions.
+This project extends the Pulse Algorithm in the Julia programming language to find the shortest alpha reliable path with consideration for link travel correlation. By incorporating link travel correlation, the algorithm becomes even more powerful in predicting and optimizing routes under real-world conditions. 
