@@ -43,3 +43,52 @@ function dijkstra(graph::Graph, target_node::String, path::String)
 
     return cost
 end
+
+function dijkstra_between2Nodes(graph::Graph, start_node::Int, target_node::Int, type::String)
+    # Initialization
+    dist = Vector{Float64}()
+    prev = Vector{Int}()
+    Q = PriorityQueue()
+    for v in sort(collect(keys(graph.nodes)))
+        push!(prev, -1)
+        if v == start_node
+            push!(dist, 0)
+        else
+            push!(dist, Inf)
+        end
+        enqueue!(Q, v, dist[v])
+    end
+
+    
+    # Dijkstra's algorithm
+    while !isempty(Q)
+        u = dequeue!(Q)
+        if u == target_node
+            break
+        end
+        for v in keys(graph.nodes[u].links)  
+            if type == "mean"
+                alt = dist[u] + graph.nodes[u].links[v].mean
+            elseif type == "cost"
+                alt = dist[u] + graph.nodes[u].links[v].variance
+            else
+                error("Unsupported type: $type. Choose 'mean' or 'cost'.")
+            end
+            if alt < dist[v]
+                dist[v] = alt
+                prev[v] = u
+                Q[v] = alt 
+            end
+        end
+    end
+
+    S = Vector{Int}()
+    u = target_node
+    if prev[u] != -1 || u == start_node
+        while u != -1
+            pushfirst!(S, u)  # Insert u at the beginning of S
+            u = prev[u]     # Traverse from target to source
+        end
+    end
+    return S
+end
