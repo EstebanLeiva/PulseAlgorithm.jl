@@ -23,7 +23,7 @@ function create_SPulseGraph(G::Graph, α::Float64, covariance_dict::Dict{Tuple{I
 end
 
 # Preprocess the graph labeling every node with the shortest mean and variance paths to the end node (target)
-function preprocess(sp::SPulseGraph)
+function preprocess!(sp::SPulseGraph)
     sp.variance_costs = dijkstra(sp.G, sp.target_node, "variance")
     sp.mean_costs = dijkstra(sp.G, sp.target_node, "mean")
     sp.minimum_costs = dijkstra(sp.G, sp.target_node, "cost")
@@ -83,7 +83,6 @@ function pulse(sp::SPulseGraph, current_node::Int, cost::Float64, mean_path::Flo
 end
 
 function calculate_covariance_term(sp::SPulseGraph, reachable_node::Int, path::Vector{Int})
-    #Check for error in calculating the covariance for the case of same node
     n = length(path)
     if n > 1
         last_node = path[end]
