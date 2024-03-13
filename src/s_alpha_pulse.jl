@@ -57,6 +57,7 @@ function C_Bounds(sp::SPulseGraph, current_node::Int, cost::Float64, path::Vecto
     if cost + sp.minimum_costs[current_node] <= sp.B 
         if current_node == sp.G.name_to_index[sp.target_node]
             sp.B = cost
+            println("New Primal Bound: $cost")
             new_path = copy(path)
             push!(new_path, current_node)
             sp.optimal_path = new_path
@@ -74,11 +75,8 @@ function pulse(sp::SPulseGraph, current_node::Int, cost::Float64, mean_path::Flo
     if C_Feasibility(sp, current_node, mean_path, variance_path, covariance_term_path)
         if C_Bounds(sp, current_node, cost, path)
             push!(path, current_node)
-            pathend = path[end]
-            println("Path END: $pathend")
             link_dict = sp.G.nodes[current_node].links 
             if path[end] ≠ sp.G.name_to_index[sp.target_node]
-                
                 for reachable_node in keys(link_dict)
                     if reachable_node ∉ path
                         #prints the current node and the path
@@ -87,16 +85,16 @@ function pulse(sp::SPulseGraph, current_node::Int, cost::Float64, mean_path::Flo
                         println("Reached node $reachable_node_str with path $inside_path_str")
                         
                         inside_path = copy(path)
-                        cost = cost + link_dict[reachable_node].cost
-                        println("Cost path: $cost")
-                        mean_path = mean_path + link_dict[reachable_node].mean
-                        println("Mean path: $mean_path")
-                        variance_path = variance_path + link_dict[reachable_node].variance
-                        println("Variance path: $variance_path")
-                        covariance_term_path = covariance_term_path + calculate_covariance_term(sp, reachable_node, inside_path)
-                        println("Covariance term path: $covariance_term_path")
+                        cost_copy = cost + link_dict[reachable_node].cost
+                        println("Cost path: $cost_copy")
+                        mean_path_copy = mean_path + link_dict[reachable_node].mean
+                        println("Mean path: $mean_path_copy")
+                        variance_path_copy = variance_path + link_dict[reachable_node].variance
+                        println("Variance path: $variance_path_copy")
+                        covariance_term_path_copy = covariance_term_path + calculate_covariance_term(sp, reachable_node, inside_path)
+                        println("Covariance term path: $covariance_term_path_copy")
                         println(" ")
-                        pulse(sp, reachable_node, cost, mean_path, variance_path, covariance_term_path, inside_path)
+                        pulse(sp, reachable_node, cost_copy, mean_path_copy, variance_path_copy, covariance_term_path_copy, inside_path)
                     end
                 end
             end
