@@ -54,7 +54,7 @@ function C_Bounds(sp::SPulseGraph, current_node::Int, cost::Float64, path::Vecto
     min_cost = cost + sp.minimum_costs[current_node]
     println("Approx cost: $min_cost")
 
-    if cost + sp.minimum_costs[current_node] <= sp.B 
+    if cost + sp.minimum_costs[current_node] < sp.B 
         if current_node == sp.G.name_to_index[sp.target_node]
             sp.B = cost
             println("New Primal Bound: $cost")
