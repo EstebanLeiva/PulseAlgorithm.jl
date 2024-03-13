@@ -32,9 +32,14 @@ end
 # Check Feasibility (true if feasible, false otherwise)
 function C_Feasibility(sp::SPulseGraph, current_node::Int, mean_path::Float64, variance_path::Float64, covariance_term_path::Float64)
     bool = true
+    mean = mean_path + sp.mean_costs[current_node]
     variance =  variance_path + covariance_term_path + sp.variance_costs[current_node]
-    dist = Normal(mean_path + sp.mean_costs[current_node], √variance)
+    sd = √variance
+    println("Approx sd path : $sd")
+    println("Approx mean path: $mean")
+    dist = Normal(mean, √variance)
     prob = cdf(dist, sp.T_max)
+    println("Probability: $prob")
     if prob < sp.α
         bool = false
         sp.instance_info["pruned_by_feasibility"] = sp.instance_info["pruned_by_feasibility"] + 1
@@ -45,6 +50,10 @@ end
 # Check Bounds (true if less than B, false otherwise)
 function C_Bounds(sp::SPulseGraph, current_node::Int, cost::Float64, path::Vector{Int})
     bool = false
+
+    min_cost = cost + sp.minimum_costs[current_node]
+    println("Approx cost: $min_cost")
+
     if cost + sp.minimum_costs[current_node] <= sp.B 
         if current_node == sp.G.name_to_index[sp.target_node]
             sp.B = cost
@@ -65,15 +74,28 @@ function pulse(sp::SPulseGraph, current_node::Int, cost::Float64, mean_path::Flo
     if C_Feasibility(sp, current_node, mean_path, variance_path, covariance_term_path)
         if C_Bounds(sp, current_node, cost, path)
             push!(path, current_node)
+            pathend = path[end]
+            println("Path END: $pathend")
             link_dict = sp.G.nodes[current_node].links 
-            if path[end] != sp.G.name_to_index[sp.target_node]
+            if path[end] ≠ sp.G.name_to_index[sp.target_node]
+                
                 for reachable_node in keys(link_dict)
                     if reachable_node ∉ path
+                        #prints the current node and the path
+                        reachable_node_str = string(reachable_node)
+                        inside_path_str = join(path, " -> ")
+                        println("Reached node $reachable_node_str with path $inside_path_str")
+                        
                         inside_path = copy(path)
                         cost = cost + link_dict[reachable_node].cost
+                        println("Cost path: $cost")
                         mean_path = mean_path + link_dict[reachable_node].mean
+                        println("Mean path: $mean_path")
                         variance_path = variance_path + link_dict[reachable_node].variance
+                        println("Variance path: $variance_path")
                         covariance_term_path = covariance_term_path + calculate_covariance_term(sp, reachable_node, inside_path)
+                        println("Covariance term path: $covariance_term_path")
+                        println(" ")
                         pulse(sp, reachable_node, cost, mean_path, variance_path, covariance_term_path, inside_path)
                     end
                 end
