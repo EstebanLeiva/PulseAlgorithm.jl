@@ -142,7 +142,7 @@ function load_flowCost_from_ta(flow_file_dir:: String)
     n = open(flow_file_dir, "r")
     while !eof(n)
         line = readline(n)
-        line = strip(line, [' ', '\t'])
+        line = strip(line, [' ', '\t', ';'])
         line = split(line, " ")
         if length(line) == 4 && line[1] != "From"
             start = string(line[1])

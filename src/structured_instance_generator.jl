@@ -33,7 +33,7 @@ function modified_dfs(graph::Graph, start_link::Tuple{Int, Int}, max_depth::Int,
 end
 
 function get_covariance_dict(graph::Graph, ρ::Float64, max_depth::Int)
-    covariance_dict = Dict{Tuple{Int, Int, Int, Int}, Float64}()
+    covariance_dict = DefaultDict{Tuple{Int, Int, Int, Int}, Float64}(0.0) #default value of dic is 0.0
     links = get_links_info(graph)
     for link in keys(links)
         visited_pairlinks = modified_dfs(graph, link, max_depth, 1, Dict{Tuple{Int, Int}, Int}(), -1)
@@ -46,7 +46,8 @@ function get_covariance_dict(graph::Graph, ρ::Float64, max_depth::Int)
             end
         end
     end
-
+    #If the code below is commented, the cov matrix will not have an entry if covariance(i,j) = 0
+    #=
     for link1 in keys(links)
         for link2 in keys(links)
             if !haskey(covariance_dict, (link1[1], link1[2], link2[1], link2[2]))
@@ -54,7 +55,7 @@ function get_covariance_dict(graph::Graph, ρ::Float64, max_depth::Int)
             end
         end
     end
-
+    =#
     return covariance_dict
 end
 
@@ -65,7 +66,7 @@ function get_random_pair(graph::Graph)
     return start_node, target_node
 end
 
-function get_quantile_path(graph::Graph, path::Vector{Int}, cov_dict::Dict{Tuple{Int, Int, Int, Int}, Float64})
+function get_quantile_path(graph::Graph, path::Vector{Int}, cov_dict::DefaultDict{Tuple{Int, Int, Int, Int}, Float64})
     mean = 0.0
     variance = 0.0
     covariance_term = 0.0
@@ -84,7 +85,7 @@ function get_quantile_path(graph::Graph, path::Vector{Int}, cov_dict::Dict{Tuple
     return mean, variance, covariance_term
 end
 
-function get_timeBudget(graph::Graph, start_node::Int, target_node::Int, α::Float64, γ::Float64, cov_dict::Dict{Tuple{Int, Int, Int, Int}, Float64})
+function get_timeBudget(graph::Graph, start_node::Int, target_node::Int, α::Float64, γ::Float64, cov_dict::DefaultDict{Tuple{Int, Int, Int, Int}, Float64})
     shortest_mean_path = dijkstra_between2Nodes(graph, start_node, target_node, "mean")
     shortest_cost_path = dijkstra_between2Nodes(graph, start_node, target_node, "cost")
     
@@ -101,17 +102,16 @@ function get_timeBudget(graph::Graph, start_node::Int, target_node::Int, α::Flo
 end
 
 
-function run_structured_instance(start_node::Int, target_node::Int, CV::Float64, ρ::Float64, α::Float64, γ::Float64, max_depth::Int)
-    graph = load_graph_from_ta("data/SiouxFalls_net.tntp", "SF", CV)
+function run_structured_instance(graph::Graph, start_node::Int, target_node::Int, ρ::Float64, α::Float64, γ::Float64, max_depth::Int)
     covariance_dict = get_covariance_dict(graph, ρ, max_depth)
-    T = 2*get_timeBudget(graph, start_node, target_node, α, γ, covariance_dict)
-    pulse = create_SPulseGraph(graph, α, covariance_dict, string(start_node),string(target_node),T)
+    T = 1.1*get_timeBudget(graph, start_node, target_node, α, γ, covariance_dict)
+    pulse = create_SPulseGraph(graph, α, covariance_dict, string(start_node), string(target_node), T)
     preprocess!(pulse)
-    #save variance cost list as a csv
+    #= save variance cost list as a csv
     CSV.write("variance_costs.csv", DataFrame(variance_costs = pulse.variance_costs), writeheader = false)
     CSV.write("mean_costs.csv", DataFrame(mean_costs = pulse.mean_costs), writeheader = false)
     CSV.write("minimum_costs.csv", DataFrame(minimum_costs = pulse.minimum_costs), writeheader = false)
-
+    =#
     elapsed_time = @elapsed begin
         run_pulse(pulse)
     end

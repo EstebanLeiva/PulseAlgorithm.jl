@@ -1,8 +1,7 @@
-# Stochastic pulse class
 mutable struct SPulseGraph
     G::Graph
     α::Float64 # reliability threshold
-    covariance_dict::Dict{Tuple{Int, Int, Int, Int}, Float64} # Σ
+    covariance_dict::DefaultDict{Tuple{Int, Int, Int, Int}, Float64} # Σ
     minimum_costs::Vector{Float64} # m_c
     variance_costs::Vector{Float64} # m_σ^2
     mean_costs::Vector{Float64} # m_μ
@@ -14,7 +13,7 @@ mutable struct SPulseGraph
     instance_info::Dict{String, Any}
 end
 
-function create_SPulseGraph(G::Graph, α::Float64, covariance_dict::Dict{Tuple{Int, Int, Int, Int}, Float64}, source_node::String, target_node::String, T_max::Float64)
+function create_SPulseGraph(G::Graph, α::Float64, covariance_dict::DefaultDict{Tuple{Int, Int, Int, Int}, Float64}, source_node::String, target_node::String, T_max::Float64)
     instance_info = Dict(
         "pruned_by_bounds" => 0,
         "pruned_by_feasibility" => 0
@@ -80,7 +79,7 @@ function pulse(sp::SPulseGraph, current_node::Int, cost::Float64, mean_path::Flo
             push!(path, current_node)
             link_dict = sp.G.nodes[current_node].links 
             if path[end] ≠ sp.G.name_to_index[sp.target_node]
-                ordered_reachable_nodes = sort(keys(link_dict), by=x->sp.minimum_costs[x]) # we explore first the nodes with minimum cost to the end node
+                ordered_reachable_nodes = sort(collect(keys(link_dict)), by=x->sp.minimum_costs[x]) # we explore first the nodes with minimum cost to the end node
                 for reachable_node in ordered_reachable_nodes
                     if reachable_node ∉ path
                         #prints the current node and the path
