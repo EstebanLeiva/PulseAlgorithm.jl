@@ -40,7 +40,10 @@ function C_Feasibility(sp::SPulseGraph, current_node::Int, mean_path::Float64, v
     dist = Normal(mean, √variance)
     prob = cdf(dist, sp.T_max)
     println("Probability: $prob")
-    if prob < sp.α
+    if sp.T_max >= mean && prob < sp.α 
+        bool = false
+        sp.instance_info["pruned_by_feasibility"] = sp.instance_info["pruned_by_feasibility"] + 1
+    elseif sp.T_max < mean && sp.α > 0.5
         bool = false
         sp.instance_info["pruned_by_feasibility"] = sp.instance_info["pruned_by_feasibility"] + 1
     end
@@ -77,7 +80,8 @@ function pulse(sp::SPulseGraph, current_node::Int, cost::Float64, mean_path::Flo
             push!(path, current_node)
             link_dict = sp.G.nodes[current_node].links 
             if path[end] ≠ sp.G.name_to_index[sp.target_node]
-                for reachable_node in keys(link_dict)
+                ordered_reachable_nodes = sort(keys(link_dict), by=x->sp.minimum_costs[x]) # we explore first the nodes with minimum cost to the end node
+                for reachable_node in ordered_reachable_nodes
                     if reachable_node ∉ path
                         #prints the current node and the path
                         reachable_node_str = string(reachable_node)

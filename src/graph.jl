@@ -39,9 +39,6 @@ function add_link!(graph::Graph, src_name::String, dst_name::String, cost::Float
     u = find_or_add!(graph, src_name)
     v = find_or_add!(graph, dst_name)
     graph.nodes[u].links[v] = Link(cost, mean, variance, 0)
-    if false # Set to your condition for directed (false) or undirected (true) graph
-        graph.nodes[v].links[u] = Link(cost, mean, variance, 0)
-    end
 end
 
 function get_links(graph::Graph)
@@ -55,10 +52,10 @@ function get_links(graph::Graph)
 end
 
 function get_links_info(graph::Graph)
-    links = Vector{Tuple{Int, Int, Float64, Float64, Float64}}()
+    links = Dict{Tuple{Int, Int}, Tuple{Float64, Float64, Float64}}()
     for (u, node) in graph.nodes
         for (v,link) in node.links
-            push!(links, (u, v, link.cost, link.mean, link.variance))
+            links[(u, v)] = (link.cost, link.mean, link.variance)
         end
     end
     return links
