@@ -137,26 +137,62 @@ function load_covariance_dictionary(covariance_dir)
     return covariance_dict
 end
 
-function load_graph_from_ta(tntp_file_dir,network_name)
+function load_flowCost_from_ta(flow_file_dir:: String)
+    cost_flow = Dict{Tuple{String, String}, Tuple{Float64, Float64}}()
+    n = open(flow_file_dir, "r")
+    while !eof(n)
+        line = readline(n)
+        line = strip(line, [' ', '\t'])
+        line = split(line, " ")
+        if length(line) == 4 && line[1] != "From"
+            start = string(line[1])
+            dst = replace(string(line[2]), r"\t" => "")
+            flow = parse(Float64, line[3])
+            cost = parse(Float64, line[4])
+            cost_flow[(start, dst)] = (cost, flow)
+        end
+    end
+    return cost_flow
+end
+
+function calculate_avg_fft_coefficient(ta_data::TA_Data)
+    sum = 0
+    for i in 1:length(ta_data.free_flow_time)
+        sum += ta_data.free_flow_time[i]/ta_data.link_length[i]
+    end
+    return sum / length(ta_data.free_flow_time)
+end
+
+function load_graph_from_ta(tntp_file_dir::String, flow_file_dir:: String, network_name::String, CV::Float64)
     ta_data = load_ta_network(tntp_file_dir,network_name)
     new_graph = Graph(Dict{Int, Node}(), Dict{String, Int}())
+
     for i in 1:length(ta_data.start_node)
         find_or_add!(new_graph, string(ta_data.start_node[i]))
     end
+
+    cost_flow = load_flowCost_from_ta(flow_file_dir)
+    avg_fft_coefficient = calculate_avg_fft_coefficient(ta_data)
+    toll_factor = 0.1 #parameter
+    length_factor = 0.1 #parameter
     for i in 1:length(ta_data.start_node)
         start = string(ta_data.start_node[i])
         dst = string(ta_data.end_node[i])
-        add_link!(new_graph, start, dst, ta_data.link_length[i], ta_data.free_flow_time[i], ta_data.free_flow_time[i]*rand(Uniform(0,1))) # random CV * mean time
+        if ta_data.free_flow_time[i] == 0
+            fft = ta_data.link_length[i] * avg_fft_coefficient
+        else
+            fft = ta_data.free_flow_time[i]
+        end
+        mean = fft * (1 + ta_data.B[i] * (cost_flow[(start,dst)][2] / ta_data.capacity[i]) ^ ta_data.power[i])
+        variance = mean*CV
+        cost = mean + toll_factor * ta_data.toll[i] + length_factor * ta_data.link_length[i]
+        add_link!(new_graph, start, dst, cost, mean, variance)
     end
     return new_graph
 end
 
-function load_data(tntp_file_dir,network_name,covariance_dir)
+function load_data(tntp_file_dir::String, flow_file_dir::String, network_name:: String, CV::Float64)
     @assert ispath(tntp_file_dir)
-    @assert ispath(covariance_dir)
-
-    graph = load_graph_from_ta(tntp_file_dir,network_name)
-    covariance_dict = load_covariance_dictionary(covariance_dir)
-
-    return DataLoader(graph,covariance_dict)
+    graph = load_graph_from_ta(tntp_file_dir, flow_file_dir, network_name, CV)
+    return DataLoader(graph,Dict())
 end
