@@ -11,14 +11,18 @@ mutable struct SPulseGraph
     source_node::String 
     target_node::String
     instance_info::Dict{String, Any}
+    k::Int #Spatial Correlation Radius 
+    dinamic_programming_size::Int
+    dominance::Dict{Vector{Int}, Vector{Tuple{Float64, Float64}}}
+
 end
 
-function create_SPulseGraph(G::Graph, α::Float64, covariance_dict::DefaultDict{Tuple{Int, Int, Int, Int}, Float64}, source_node::String, target_node::String, T_max::Float64)
+function create_SPulseGraph(G::Graph, α::Float64, covariance_dict::DefaultDict{Tuple{Int, Int, Int, Int}, Float64}, source_node::String, target_node::String, T_max::Float64, k::Int, dinamic_programming_size::Int)
     instance_info = Dict(
         "pruned_by_bounds" => 0,
         "pruned_by_feasibility" => 0
         )
-    return SPulseGraph(G, α, covariance_dict, Vector{Float64}(), Vector{Float64}(), Vector{Float64}(), Vector{Int}(), Inf64, T_max, source_node, target_node, instance_info)
+    return SPulseGraph(G, α, covariance_dict, Vector{Float64}(), Vector{Float64}(), Vector{Float64}(), Vector{Int}(), Inf64, T_max, source_node, target_node, instance_info, k, Dict{Vector{Int}, Vector{Tuple(Float64, Float64)}}(), dinamic_programming_size)
 end
 
 # Preprocess the graph labeling every node with the shortest mean and variance paths to the end node (target)
@@ -81,34 +85,63 @@ function C_Bounds(sp::SPulseGraph, current_node::Int, cost::Float64, path::Vecto
     return bool
 end
 
+function C_dominance(sp::SPulseGraph, current_node::Int, cost::Float64, mean_path::Float64, variance_term::Float64, covariance_term::Float64, path::Vector{Int})
+    on_time_arrival_probability = cdf(Normal(mean_path, √(variance_term + covariance_term)), sp.T_max)
+    if length(path) + 1 > sp.k
+        last_k_nodes = path[end - (sp.k+1):end]
+        last_k_edges = []
+        for i in 1:sp.k
+            push!(last_k_edges, (last_k_nodes[i], last_k_nodes[i+1]))
+        end
+        if last_k_edges in keys(sp.dominance)
+            dominates = false
+            for j in 1:length(sp.dominance[last_k_edges])
+                if cost > sp.dominance[last_k_edges][j][1] && on_time_arrival_probability < sp.dominance[last_k_edges][j][2] 
+                    return false
+                elseif cost <= sp.dominance[last_k_edges][j][1] && on_time_arrival_probability > sp.dominance[last_k_edges][j][2] 
+                    sp.dominance[last_k_edges][j] = (cost, on_time_arrival_probability)
+                    dominates = true
+                end
+            end
+            if length(sp.dominance[last_k_edges]) < sp.dinamic_programming_size && !dominates
+                push!(sp.dominance[last_k_edges], (cost, on_time_arrival_probability))
+            end
+        else
+            push!(sp.dominance[last_k_edges], (cost, on_time_arrival_probability))
+        end
+    end
+    return true 
+end
 
 function pulse(sp::SPulseGraph, current_node::Int, cost::Float64, mean_path::Float64, variance_path::Float64, covariance_term_path::Float64, path::Vector{Int})
     if C_Feasibility(sp, current_node, mean_path, variance_path, covariance_term_path)
         if C_Bounds(sp, current_node, cost, path)
-            push!(path, current_node)
-            link_dict = sp.G.nodes[current_node].links 
-            if path[end] ≠ sp.G.name_to_index[sp.target_node]
-                ordered_reachable_nodes = sort(collect(keys(link_dict)), by=x->sp.minimum_costs[x]) # we explore first the nodes with minimum cost to the end node
-                for reachable_node in ordered_reachable_nodes
-                    if reachable_node ∉ path
-                        
-                        println(sp.instance_info)
-                        #prints the current node and the path
-                        reachable_node_str = string(reachable_node)
-                        inside_path_str = join(path, " -> ")
-                        #println("Reached node $reachable_node_str with path $inside_path_str")
-                        
-                        inside_path = copy(path)
-                        cost_copy = cost + link_dict[reachable_node].cost
-                        #println("Cost path: $cost_copy")
-                        mean_path_copy = mean_path + link_dict[reachable_node].mean
-                        #println("Mean path: $mean_path_copy")
-                        variance_path_copy = variance_path + link_dict[reachable_node].variance
-                        #println("Variance path: $variance_path_copy")
-                        covariance_term_path_copy = covariance_term_path + calculate_covariance_term(sp, reachable_node, inside_path)
-                        #println("Covariance term path: $covariance_term_path_copy")
-                        #println(" ")
-                        pulse(sp, reachable_node, cost_copy, mean_path_copy, variance_path_copy, covariance_term_path_copy, inside_path)
+            if C_dominance(sp, current_node, cost, mean_path, variance_path, covariance_term_path, path)
+                push!(path, current_node)
+                link_dict = sp.G.nodes[current_node].links 
+                if path[end] ≠ sp.G.name_to_index[sp.target_node]
+                    ordered_reachable_nodes = sort(collect(keys(link_dict)), by=x->sp.minimum_costs[x]) # we explore first the nodes with minimum cost to the end node
+                    for reachable_node in ordered_reachable_nodes
+                        if reachable_node ∉ path
+                            
+                            println(sp.instance_info)
+                            #prints the current node and the path
+                            reachable_node_str = string(reachable_node)
+                            inside_path_str = join(path, " -> ")
+                            #println("Reached node $reachable_node_str with path $inside_path_str")
+                            
+                            inside_path = copy(path)
+                            cost_copy = cost + link_dict[reachable_node].cost
+                            #println("Cost path: $cost_copy")
+                            mean_path_copy = mean_path + link_dict[reachable_node].mean
+                            #println("Mean path: $mean_path_copy")
+                            variance_path_copy = variance_path + link_dict[reachable_node].variance
+                            #println("Variance path: $variance_path_copy")
+                            covariance_term_path_copy = covariance_term_path + calculate_covariance_term(sp, reachable_node, inside_path)
+                            #println("Covariance term path: $covariance_term_path_copy")
+                            #println(" ")
+                            pulse(sp, reachable_node, cost_copy, mean_path_copy, variance_path_copy, covariance_term_path_copy, inside_path)
+                        end
                     end
                 end
             end
