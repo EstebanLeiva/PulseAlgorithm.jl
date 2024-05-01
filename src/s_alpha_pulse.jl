@@ -28,17 +28,26 @@ function preprocess!(sp::SPulseGraph)
     sp.minimum_costs = dijkstra(sp.G, sp.target_node, "cost")
 end
 
+function preprocess2!(sp::SPulseGraph)
+    data = CSV.read("minimum_costs_ChicagoRegional.csv", DataFrame)
+    sp.minimum_costs =  data[:, 1] |> collect
+    data = CSV.read("mean_costs_ChicagoRegional.csv", DataFrame)
+    sp.mean_costs =  data[:, 1] |> collect
+    data = CSV.read("variance_costs_ChicagoRegional.csv", DataFrame)
+    sp.variance_costs =  data[:, 1] |> collect
+end
+
 # Check Feasibility (true if feasible, false otherwise)
 function C_Feasibility(sp::SPulseGraph, current_node::Int, mean_path::Float64, variance_path::Float64, covariance_term_path::Float64)
     bool = true
     mean = mean_path + sp.mean_costs[current_node]
     variance =  variance_path + covariance_term_path + sp.variance_costs[current_node]
     sd = √variance
-    println("Approx sd path : $sd")
-    println("Approx mean path: $mean")
+    #println("Approx sd path : $sd")
+    #println("Approx mean path: $mean")
     dist = Normal(mean, √variance)
     prob = cdf(dist, sp.T_max)
-    println("Probability: $prob")
+    #println("Probability: $prob")
     if sp.T_max >= mean && prob < sp.α 
         bool = false
         sp.instance_info["pruned_by_feasibility"] = sp.instance_info["pruned_by_feasibility"] + 1
@@ -54,12 +63,12 @@ function C_Bounds(sp::SPulseGraph, current_node::Int, cost::Float64, path::Vecto
     bool = false
 
     min_cost = cost + sp.minimum_costs[current_node]
-    println("Approx cost: $min_cost")
+    #println("Approx cost: $min_cost")
 
     if cost + sp.minimum_costs[current_node] < sp.B 
         if current_node == sp.G.name_to_index[sp.target_node]
             sp.B = cost
-            println("New Primal Bound: $cost")
+            #println("New Primal Bound: $cost")
             new_path = copy(path)
             push!(new_path, current_node)
             sp.optimal_path = new_path
@@ -82,21 +91,23 @@ function pulse(sp::SPulseGraph, current_node::Int, cost::Float64, mean_path::Flo
                 ordered_reachable_nodes = sort(collect(keys(link_dict)), by=x->sp.minimum_costs[x]) # we explore first the nodes with minimum cost to the end node
                 for reachable_node in ordered_reachable_nodes
                     if reachable_node ∉ path
+                        
+                        println(sp.instance_info)
                         #prints the current node and the path
                         reachable_node_str = string(reachable_node)
                         inside_path_str = join(path, " -> ")
-                        println("Reached node $reachable_node_str with path $inside_path_str")
+                        #println("Reached node $reachable_node_str with path $inside_path_str")
                         
                         inside_path = copy(path)
                         cost_copy = cost + link_dict[reachable_node].cost
-                        println("Cost path: $cost_copy")
+                        #println("Cost path: $cost_copy")
                         mean_path_copy = mean_path + link_dict[reachable_node].mean
-                        println("Mean path: $mean_path_copy")
+                        #println("Mean path: $mean_path_copy")
                         variance_path_copy = variance_path + link_dict[reachable_node].variance
-                        println("Variance path: $variance_path_copy")
+                        #println("Variance path: $variance_path_copy")
                         covariance_term_path_copy = covariance_term_path + calculate_covariance_term(sp, reachable_node, inside_path)
-                        println("Covariance term path: $covariance_term_path_copy")
-                        println(" ")
+                        #println("Covariance term path: $covariance_term_path_copy")
+                        #println(" ")
                         pulse(sp, reachable_node, cost_copy, mean_path_copy, variance_path_copy, covariance_term_path_copy, inside_path)
                     end
                 end

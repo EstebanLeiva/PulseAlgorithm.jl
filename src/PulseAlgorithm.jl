@@ -6,7 +6,6 @@ using CSV
 using DataFrames
 using DataStructures
 using Distributions
-using Plots 
 
 include("graph.jl")
 include("data_loader.jl")
