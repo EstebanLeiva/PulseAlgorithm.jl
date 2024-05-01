@@ -173,8 +173,8 @@ function load_graph_from_ta(tntp_file_dir::String, flow_file_dir:: String, netwo
 
     cost_flow = load_flowCost_from_ta(flow_file_dir)
     avg_fft_coefficient = calculate_avg_fft_coefficient(ta_data)
-    toll_factor = 0.1 #parameter
-    length_factor = 0.1 #parameter
+    toll_factor = 0.5 #parameter , 0.1 before
+    length_factor = 0.5 #parameter , 0.1 before
     for i in 1:length(ta_data.start_node)
         start = string(ta_data.start_node[i])
         dst = string(ta_data.end_node[i])
