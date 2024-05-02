@@ -87,7 +87,9 @@ end
 
 function get_timeBudget(graph::Graph, start_node::Int, target_node::Int, α::Float64, γ::Float64, cov_dict::DefaultDict{Tuple{Int, Int, Int, Int}, Float64})
     shortest_mean_path = dijkstra_between2Nodes(graph, start_node, target_node, "mean")
+    println("Shortest mean path: ", shortest_mean_path)
     shortest_cost_path = dijkstra_between2Nodes(graph, start_node, target_node, "cost")
+    println("Shortest cost path: ", shortest_cost_path)
     
     mean, variance, covariance_term = get_quantile_path(graph, shortest_mean_path, cov_dict)
     dist = Normal(mean, √(variance+covariance_term))
@@ -104,13 +106,14 @@ end
 
 function run_structured_instance(graph::Graph, start_node::Int, target_node::Int, ρ::Float64, α::Float64, γ::Float64, max_depth::Int)
     covariance_dict = get_covariance_dict(graph, ρ, max_depth)
-    T = 3*get_timeBudget(graph, start_node, target_node, α, γ, covariance_dict)
-    pulse = create_SPulseGraph(graph, α, covariance_dict, string(start_node), string(target_node), T)
+    T = 2*get_timeBudget(graph, start_node, target_node, α, γ, covariance_dict)
+    println("Time budget: ", T)
+    pulse = create_SPulseGraph(graph, α, covariance_dict, string(start_node), string(target_node), T, max_depth, 1000)
     preprocess!(pulse)
-    
-    #CSV.write("variance_costs_ChicagoRegional.csv", DataFrame(variance_costs = pulse.variance_costs), writeheader = false)
-    #CSV.write("mean_costs_ChicagoRegional.csv", DataFrame(mean_costs = pulse.mean_costs), writeheader = false)
-    #CSV.write("minimum_costs_ChicagoRegional.csv", DataFrame(minimum_costs = pulse.minimum_costs), writeheader = false)
+    println("Preprocessing done")
+    CSV.write("variance_costs_ChicagoRegional.csv", DataFrame(variance_costs = pulse.variance_costs), writeheader = false)
+    CSV.write("mean_costs_ChicagoRegional.csv", DataFrame(mean_costs = pulse.mean_costs), writeheader = false)
+    CSV.write("minimum_costs_ChicagoRegional.csv", DataFrame(minimum_costs = pulse.minimum_costs), writeheader = false)
     
     elapsed_time = @elapsed begin
         run_pulse(pulse)

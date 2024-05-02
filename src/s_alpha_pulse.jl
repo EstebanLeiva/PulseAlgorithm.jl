@@ -13,16 +13,17 @@ mutable struct SPulseGraph
     instance_info::Dict{String, Any}
     k::Int #Spatial Correlation Radius 
     dinamic_programming_size::Int
-    dominance::Dict{Vector{Int}, Vector{Tuple{Float64, Float64}}}
+    dominance::Dict{Vector{Tuple{Int, Int}}, Vector{Tuple{Float64, Float64}}}
 
 end
 
 function create_SPulseGraph(G::Graph, α::Float64, covariance_dict::DefaultDict{Tuple{Int, Int, Int, Int}, Float64}, source_node::String, target_node::String, T_max::Float64, k::Int, dinamic_programming_size::Int)
     instance_info = Dict(
         "pruned_by_bounds" => 0,
-        "pruned_by_feasibility" => 0
+        "pruned_by_feasibility" => 0,
+        "pruned_by_dominance" => 0
         )
-    return SPulseGraph(G, α, covariance_dict, Vector{Float64}(), Vector{Float64}(), Vector{Float64}(), Vector{Int}(), Inf64, T_max, source_node, target_node, instance_info, k, Dict{Vector{Int}, Vector{Tuple(Float64, Float64)}}(), dinamic_programming_size)
+    return SPulseGraph(G, α, covariance_dict, Vector{Float64}(), Vector{Float64}(), Vector{Float64}(), Vector{Int}(), Inf64, T_max, source_node, target_node, instance_info, k, dinamic_programming_size, Dict{Vector{Tuple{Int, Int}}, Vector{Tuple{Float64, Float64}}}())
 end
 
 # Preprocess the graph labeling every node with the shortest mean and variance paths to the end node (target)
@@ -87,8 +88,10 @@ end
 
 function C_dominance(sp::SPulseGraph, current_node::Int, cost::Float64, mean_path::Float64, variance_term::Float64, covariance_term::Float64, path::Vector{Int})
     on_time_arrival_probability = cdf(Normal(mean_path, √(variance_term + covariance_term)), sp.T_max)
-    if length(path) + 1 > sp.k
-        last_k_nodes = path[end - (sp.k+1):end]
+    if length(path) > sp.k 
+        path_aux = copy(path)
+        push!(path_aux, current_node)
+        last_k_nodes = path_aux[end - (sp.k+1):end]
         last_k_edges = []
         for i in 1:sp.k
             push!(last_k_edges, (last_k_nodes[i], last_k_nodes[i+1]))
@@ -97,6 +100,7 @@ function C_dominance(sp::SPulseGraph, current_node::Int, cost::Float64, mean_pat
             dominates = false
             for j in 1:length(sp.dominance[last_k_edges])
                 if cost > sp.dominance[last_k_edges][j][1] && on_time_arrival_probability < sp.dominance[last_k_edges][j][2] 
+                    sp.instance_info["pruned_by_dominance"] = sp.instance_info["pruned_by_dominance"] + 1
                     return false
                 elseif cost <= sp.dominance[last_k_edges][j][1] && on_time_arrival_probability > sp.dominance[last_k_edges][j][2] 
                     sp.dominance[last_k_edges][j] = (cost, on_time_arrival_probability)
@@ -107,7 +111,8 @@ function C_dominance(sp::SPulseGraph, current_node::Int, cost::Float64, mean_pat
                 push!(sp.dominance[last_k_edges], (cost, on_time_arrival_probability))
             end
         else
-            push!(sp.dominance[last_k_edges], (cost, on_time_arrival_probability))
+            #println(sp.dominance)
+            sp.dominance[last_k_edges] = [(cost, on_time_arrival_probability)]
         end
     end
     return true 
@@ -123,8 +128,10 @@ function pulse(sp::SPulseGraph, current_node::Int, cost::Float64, mean_path::Flo
                     ordered_reachable_nodes = sort(collect(keys(link_dict)), by=x->sp.minimum_costs[x]) # we explore first the nodes with minimum cost to the end node
                     for reachable_node in ordered_reachable_nodes
                         if reachable_node ∉ path
-                            
-                            println(sp.instance_info)
+                            #print instance info every 1000 iterations
+                            #or in julia
+
+                            #println(sp.instance_info)
                             #prints the current node and the path
                             reachable_node_str = string(reachable_node)
                             inside_path_str = join(path, " -> ")
