@@ -23,9 +23,12 @@ end
 
 # Preprocess the graph labeling every node with the shortest mean and variance paths to the end node (target)
 function preprocess!(sp::SPulseGraph)
+    sp.minimum_costs = dijkstra(sp.G, sp.target_node, "cost")
+    if sp.minimum_costs[sp.G.name_to_index[sp.source_node]] == Inf
+        error("The source node is not reachable from the target node")
+    end
     sp.variance_costs = dijkstra(sp.G, sp.target_node, "variance")
     sp.mean_costs = dijkstra(sp.G, sp.target_node, "mean")
-    sp.minimum_costs = dijkstra(sp.G, sp.target_node, "cost")
 end
 
 function preprocess2!(sp::SPulseGraph)
@@ -92,10 +95,10 @@ function pulse(sp::SPulseGraph, current_node::Int, cost::Float64, mean_path::Flo
                 for reachable_node in ordered_reachable_nodes
                     if reachable_node ∉ path
                         
-                        println(sp.instance_info)
+                        #println(sp.instance_info)
                         #prints the current node and the path
-                        reachable_node_str = string(reachable_node)
-                        inside_path_str = join(path, " -> ")
+                        #reachable_node_str = string(reachable_node)
+                        #inside_path_str = join(path, " -> ")
                         #println("Reached node $reachable_node_str with path $inside_path_str")
                         
                         inside_path = copy(path)

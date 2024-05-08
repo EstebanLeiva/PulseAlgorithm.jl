@@ -102,15 +102,15 @@ function get_timeBudget(graph::Graph, start_node::Int, target_node::Int, α::Flo
 end
 
 
-function run_structured_instance(graph::Graph, start_node::Int, target_node::Int, ρ::Float64, α::Float64, γ::Float64, max_depth::Int)
+function run_structured_instance(graph::Graph, start_node::String, target_node::String, ρ::Float64, α::Float64, γ::Float64, max_depth::Int)
     covariance_dict = get_covariance_dict(graph, ρ, max_depth)
-    T = 3*get_timeBudget(graph, start_node, target_node, α, γ, covariance_dict)
-    pulse = create_SPulseGraph(graph, α, covariance_dict, string(start_node), string(target_node), T)
+    T = 1.2*get_timeBudget(graph, graph.name_to_index[start_node], graph.name_to_index[target_node], α, γ, covariance_dict)
+    pulse = create_SPulseGraph(graph, α, covariance_dict, start_node, target_node, T)
     preprocess!(pulse)
     
-    #CSV.write("variance_costs_ChicagoRegional.csv", DataFrame(variance_costs = pulse.variance_costs), writeheader = false)
-    #CSV.write("mean_costs_ChicagoRegional.csv", DataFrame(mean_costs = pulse.mean_costs), writeheader = false)
-    #CSV.write("minimum_costs_ChicagoRegional.csv", DataFrame(minimum_costs = pulse.minimum_costs), writeheader = false)
+    #CSV.write("variance_costs_ChicagoRegional_" * target_node * ".csv", DataFrame(variance_costs = pulse.variance_costs), writeheader = false)
+    #CSV.write("mean_costs_ChicagoRegional_" * target_node * ".csv", DataFrame(mean_costs = pulse.mean_costs), writeheader = false)
+    #CSV.write("minimum_costs_ChicagoRegional_" * target_node * ".csv", DataFrame(minimum_costs = pulse.minimum_costs), writeheader = false)
     
     elapsed_time = @elapsed begin
         run_pulse(pulse)
@@ -119,47 +119,46 @@ function run_structured_instance(graph::Graph, start_node::Int, target_node::Int
     return elapsed_time, pulse.instance_info, (start_node, target_node), T, pulse.optimal_path
 end
 
-function run_experiment_ρ(start_node::Int, target_node::Int, CV::Float64, ρs::Vector{Float64}, α::Float64, γ::Float64, max_depth::Int)
-    results = []
-    for ρ in ρs
-        elapsed_time, instance_info, pair, T = run_structured_instance(start_node, target_node, CV, ρ, α, γ, max_depth)
-        push!(results, (elapsed_time, instance_info, pair, T))
-    end
-    return results
+function write_shortest_paths(graph::Graph, target_node::String, folder_path::String, network_name::String)
+    variance_costs = dijkstra(graph, target_node, "variance")
+    file_path = joinpath(folder_path, "variance_costs_" * network_name * "_" * target_node * ".csv")
+    CSV.write(file_path, DataFrame(variance_costs = variance_costs), writeheader = false)
+
+    mean_costs = dijkstra(graph, target_node, "mean")
+    file_path = joinpath(folder_path, "mean_costs_" * network_name * "_" * target_node * ".csv")
+    CSV.write(file_path, DataFrame(mean_costs = mean_costs), writeheader = false)
+
+    minimum_costs = dijkstra(graph, target_node, "cost")
+    file_path = joinpath(folder_path, "minimum_costs_" * network_name * "_" * target_node * ".csv")
+    CSV.write(file_path, DataFrame(minimum_costs = minimum_costs), writeheader = false)
 end
 
-function run_experiment_γ(start_node::Int, target_node::Int, CV::Float64, ρ::Float64, α::Float64, γs::Vector{Float64}, max_depth::Int)
-    results = []
-    for γ in γs
-        elapsed_time, instance_info, pair, T = run_structured_instance(start_node, target_node, CV, ρ, α, γ, max_depth)
-        push!(results, (elapsed_time, instance_info, pair, T))
-    end
-    return results
+function preprocessing_experiments!(sp::SPulseGraph, folder_path::String, network_name::String, target_node::String)
+    file_path = joinpath(folder_path, "minimum_costs_" * network_name * "_" * target_node * ".csv")
+    data = CSV.read(file_path, DataFrame)
+    sp.minimum_costs =  data[:, 1] |> collect
+
+    file_path = joinpath(folder_path, "mean_costs_" * network_name * "_" * target_node * ".csv")
+    data = CSV.read(file_path, DataFrame)
+    sp.mean_costs =  data[:, 1] |> collect
+
+    file_path = joinpath(folder_path, "variance_costs_" * network_name * "_" * target_node * ".csv")
+    data = CSV.read(file_path, DataFrame)
+    sp.variance_costs =  data[:, 1] |> collect
+
+    possible_start_nodes = sort(collect(keys(sp.G.nodes)), by=x->sp.minimum_costs[x], reverse=true)
+    possible_start_nodes = filter(x->sp.minimum_costs[x] != Inf, nodes)
+
+    sp.source_node = sp.G.nodes[possible_start_nodes[1]].name #the node farthest from target
 end
 
-function run_experiment_α(start_node::Int, target_node::Int, CV::Float64, ρ::Float64, αs::Vector{Float64}, γ::Float64, max_depth::Int)
-    results = []
-    for α in αs
-        elapsed_time, instance_info, pair, T = run_structured_instance(start_node, target_node, CV, ρ, α, γ, max_depth)
-        push!(results, (elapsed_time, instance_info, pair, T))
+function run_experiments_time(graph::Graph, start_node::String, target_node::String, ρ::Float64, α::Float64, γ::Float64, max_depth::Int)
+    covariance_dict = get_covariance_dict(graph, ρ, max_depth)
+    T = 1.2*get_timeBudget(graph, start_node, target_node, α, γ, covariance_dict)
+    pulse = create_SPulseGraph(graph, α, covariance_dict, start_node, target_node, T)
+    preprocess_experiments!(pulse)
+    elapsed_time = @elapsed begin
+        run_pulse(pulse)
     end
-    return results
-end
-
-function run_experiment_CV(start_node::Int, target_node::Int, CVs::Vector{Float64}, ρ::Float64, α::Float64, γ::Float64, max_depth::Int)
-    results = []
-    for CV in CVs
-        elapsed_time, instance_info, pair, T = run_structured_instance(start_node, target_node, CV, ρ, α, γ, max_depth)
-        push!(results, (elapsed_time, instance_info, pair, T))
-    end
-    return results
-end
-
-function run_experiment_max_depth(start_node::Int, target_node::Int, max_depths::Vector{Int}, CV::Float64, ρ::Float64, α::Float64, γ::Float64)
-    results = []
-    for max_depth in max_depths
-        elapsed_time, instance_info, pair, T = run_structured_instance(start_node, target_node, CV, ρ, α, γ, max_depth)
-        push!(results, (elapsed_time, instance_info, pair, T))
-    end
-    return results
+    return elapsed_time, pulse.instance_info, (start_node, target_node), T, pulse.optimal_path
 end
