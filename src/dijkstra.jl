@@ -70,7 +70,7 @@ function dijkstra_between2Nodes(graph::Graph, start_node::Int, target_node::Int,
             if type == "mean"
                 alt = dist[u] + graph.nodes[u].links[v].mean
             elseif type == "cost"
-                alt = dist[u] + graph.nodes[u].links[v].variance
+                alt = dist[u] + graph.nodes[u].links[v].cost
             else
                 error("Unsupported type: $type. Choose 'mean' or 'cost'.")
             end

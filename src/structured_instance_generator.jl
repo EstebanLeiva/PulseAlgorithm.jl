@@ -83,17 +83,33 @@ end
 function get_timeBudget(graph::Graph, start_node::Int, target_node::Int, α::Float64, γ::Float64, cov_dict::DefaultDict{Tuple{Int, Int, Int, Int}, Float64})
     shortest_mean_path = dijkstra_between2Nodes(graph, start_node, target_node, "mean")
     shortest_cost_path = dijkstra_between2Nodes(graph, start_node, target_node, "cost")
+    #calculate cost of shortest_cost_path
+    cost_min_cost = 0.0
+    for i in 1:length(shortest_cost_path)-1
+        cost_min_cost = cost_min_cost + graph.nodes[shortest_cost_path[i]].links[shortest_cost_path[i+1]].cost 
+    end
+    println("Cost of minimum cost path: $cost_min_cost")
+
+    cost_min_mean = 0.0
+    for i in 1:length(shortest_mean_path)-1
+        cost_min_mean = cost_min_mean + graph.nodes[shortest_mean_path[i]].links[shortest_mean_path[i+1]].cost 
+    end
+    println("Cost of minimum mean path: $cost_min_mean")
     
     mean, variance, covariance_term = get_quantile_path(graph, shortest_mean_path, cov_dict)
     dist = Normal(mean, √(variance+covariance_term))
     T_t_α = quantile(dist, α)
-
+    println("T_t_α: $T_t_α")
     mean, variance, covariance_term = get_quantile_path(graph, shortest_cost_path, cov_dict)
     dist = Normal(mean, √(variance+covariance_term))
     T_c_α = quantile(dist, α)
-    
+    println("T_c_α: $T_c_α")
+    if T_t_α == T_c_α
+        error("T_t_α and T_c_α are equal")
+    end
     T = T_t_α + (T_c_α - T_t_α) * (1 - γ)
-    return T
+    #T = T_c_α
+    return T, shortest_mean_path, shortest_cost_path, cost_min_mean, cost_min_cost
 end
 
 
@@ -153,10 +169,32 @@ function run_experiments_time(graph::Graph, source_node::String, target_node::St
     covariance_dict = get_covariance_dict(graph, ρ, max_depth)
     pulse = create_SPulseGraph(graph, α, covariance_dict, source_node, target_node, 0.0)
     source_node = preprocess_experiments(pulse, folder_path, network_name, target_node) 
-    T = (1)*get_timeBudget(graph, pulse.G.name_to_index[source_node], pulse.G.name_to_index[target_node], α, γ, covariance_dict)
+    T, shortest_mean_path, shortest_cost_path, cost_min_mean, cost_min_cost = get_timeBudget(graph, pulse.G.name_to_index[source_node], pulse.G.name_to_index[target_node], α, γ, covariance_dict)
     pulse.T_max = T
-    elapsed_time = @elapsed begin
-        run_pulse(pulse)
+    pulse.check_path = shortest_mean_path
+    
+    #get probability of the shortest mean path
+    mean, variance, covariance_term = get_quantile_path(graph, shortest_cost_path, covariance_dict)
+    dist = Normal(mean, √(variance+covariance_term))
+    prob = cdf(dist, pulse.T_max)
+    println("Probability of shortest cost path: $prob")
+
+    mean, variance, covariance_term = get_quantile_path(graph, shortest_mean_path, covariance_dict)
+    dist = Normal(mean, √(variance+covariance_term))
+    prob = cdf(dist, pulse.T_max)
+    println("Probability of shortest mean path: $prob")
+
+    
+    if prob >= α && false
+        println("Shortest cost path is feasible")
+        println("Cost of minimum cost path: $cost_min_mean")
+        elapsed_time = @elapsed begin
+            run_pulse(pulse, shortest_mean_path, cost_min_mean)
+        end
+    else
+        elapsed_time = @elapsed begin
+            run_pulse(pulse)
+        end
     end
-    return elapsed_time, pulse.instance_info, (source_node, target_node), T, pulse.optimal_path
+    return elapsed_time, pulse.instance_info, (source_node, target_node), pulse.B, pulse.optimal_path
 end
