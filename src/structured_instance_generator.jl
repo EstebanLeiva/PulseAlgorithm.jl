@@ -70,18 +70,13 @@ function get_quantile_path(graph::Graph, path::Vector{Int}, cov_dict::DefaultDic
     mean = 0.0
     variance = 0.0
     covariance_term = 0.0
-
     for i in 1:length(path)-1
         mean += graph.nodes[path[i]].links[path[i+1]].mean
         variance += graph.nodes[path[i]].links[path[i+1]].variance
-        for ii in length(path)-1
-            if ii != i
-                covariance_term += 2*cov_dict[(path[i], path[i+1], path[ii], path[ii+1])]
-            end
+        for ii in i + 1:length(path)-1
+            covariance_term += 2*cov_dict[(path[i], path[i+1], path[ii], path[ii+1])]
         end
     end
-
-    covariance_term = 2 * covariance_term
     return mean, variance, covariance_term
 end
 
@@ -133,32 +128,35 @@ function write_shortest_paths(graph::Graph, target_node::String, folder_path::St
     CSV.write(file_path, DataFrame(minimum_costs = minimum_costs), writeheader = false)
 end
 
-function preprocessing_experiments!(sp::SPulseGraph, folder_path::String, network_name::String, target_node::String)
+function preprocess_experiments(sp::SPulseGraph, folder_path::String, network_name::String, target_node::String)
     file_path = joinpath(folder_path, "minimum_costs_" * network_name * "_" * target_node * ".csv")
-    data = CSV.read(file_path, DataFrame)
+    data = CSV.read(file_path, DataFrame, header = false)
     sp.minimum_costs =  data[:, 1] |> collect
 
     file_path = joinpath(folder_path, "mean_costs_" * network_name * "_" * target_node * ".csv")
-    data = CSV.read(file_path, DataFrame)
+    data = CSV.read(file_path, DataFrame, header = false)
     sp.mean_costs =  data[:, 1] |> collect
 
     file_path = joinpath(folder_path, "variance_costs_" * network_name * "_" * target_node * ".csv")
-    data = CSV.read(file_path, DataFrame)
+    data = CSV.read(file_path, DataFrame, header = false)
     sp.variance_costs =  data[:, 1] |> collect
 
-    possible_start_nodes = sort(collect(keys(sp.G.nodes)), by=x->sp.minimum_costs[x], reverse=true)
-    possible_start_nodes = filter(x->sp.minimum_costs[x] != Inf, nodes)
+    nodes = sort(collect(sp.G.nodes), by=x->sp.minimum_costs[x[1]], rev = true)
+    possible_start_nodes = filter(x->sp.minimum_costs[x[1]] != Inf, nodes)
 
-    sp.source_node = sp.G.nodes[possible_start_nodes[1]].name #the node farthest from target
+    sp.source_node = possible_start_nodes[1][2].name #the node farthest from target
+
+    return sp.source_node
 end
 
-function run_experiments_time(graph::Graph, start_node::String, target_node::String, ρ::Float64, α::Float64, γ::Float64, max_depth::Int)
+function run_experiments_time(graph::Graph, source_node::String, target_node::String, ρ::Float64, α::Float64, γ::Float64, max_depth::Int, folder_path::String, network_name::String)
     covariance_dict = get_covariance_dict(graph, ρ, max_depth)
-    T = 1.2*get_timeBudget(graph, start_node, target_node, α, γ, covariance_dict)
-    pulse = create_SPulseGraph(graph, α, covariance_dict, start_node, target_node, T)
-    preprocess_experiments!(pulse)
+    pulse = create_SPulseGraph(graph, α, covariance_dict, source_node, target_node, 0.0)
+    source_node = preprocess_experiments(pulse, folder_path, network_name, target_node) 
+    T = (1)*get_timeBudget(graph, pulse.G.name_to_index[source_node], pulse.G.name_to_index[target_node], α, γ, covariance_dict)
+    pulse.T_max = T
     elapsed_time = @elapsed begin
         run_pulse(pulse)
     end
-    return elapsed_time, pulse.instance_info, (start_node, target_node), T, pulse.optimal_path
+    return elapsed_time, pulse.instance_info, (source_node, target_node), T, pulse.optimal_path
 end
