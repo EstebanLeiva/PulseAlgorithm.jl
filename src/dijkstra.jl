@@ -3,7 +3,7 @@ function dijkstra(graph::Graph, target_node::String, path::String)
     n = length(graph.nodes)
     # Set the cost of the final node to 0 and the cost of all other nodes to infinity.
     cost = fill(Inf, n)
-    cost[target_node] = 0
+    cost[target_node] = 0.0
 
     # Initialize a priority queue.
     # The queue will store the nodes to be visited, 
@@ -11,7 +11,7 @@ function dijkstra(graph::Graph, target_node::String, path::String)
     queue = PriorityQueue()
 
     # Add the final node to the priority queue.
-    enqueue!(queue, target_node, 0)
+    enqueue!(queue, target_node, 0.0)
 
     # While the queue is not empty, 
     #  remove the node with the highest priority (lowest cost). 
@@ -22,8 +22,7 @@ function dijkstra(graph::Graph, target_node::String, path::String)
 
     while !isempty(queue)
         current_node = dequeue!(queue)
-
-        for (neighbor, link) in graph.nodes[current_node].links
+        for (neighbor, link) in graph.nodes[current_node].incoming_links
             if path == "variance"
                 new_cost = cost[current_node] + link.variance
             elseif path == "mean"
@@ -36,7 +35,7 @@ function dijkstra(graph::Graph, target_node::String, path::String)
 
             if new_cost < cost[neighbor]
                 cost[neighbor] = new_cost
-                enqueue!(queue, neighbor, -new_cost)
+                enqueue!(queue, neighbor, -new_cost) #could be +new_cost
             end
         end
     end
@@ -49,6 +48,7 @@ function dijkstra_between2Nodes(graph::Graph, start_node::Int, target_node::Int,
     dist = Vector{Float64}()
     prev = Vector{Int}()
     Q = PriorityQueue()
+
     for v in sort(collect(keys(graph.nodes)))
         push!(prev, -1)
         if v == start_node
@@ -66,7 +66,7 @@ function dijkstra_between2Nodes(graph::Graph, start_node::Int, target_node::Int,
         if u == target_node
             break
         end
-        for v in keys(graph.nodes[u].links)  
+        for v in keys(graph.nodes[u].links)  #neighbors of u
             if type == "mean"
                 alt = dist[u] + graph.nodes[u].links[v].mean
             elseif type == "cost"

@@ -11,7 +11,6 @@ mutable struct SPulseGraph
     source_node::String 
     target_node::String
     instance_info::Dict{String, Any}
-    check_path::Vector{Int}
 end
 
 function create_SPulseGraph(G::Graph, α::Float64, covariance_dict::DefaultDict{Tuple{Int, Int, Int, Int}, Float64}, source_node::String, target_node::String, T_max::Float64)
@@ -19,7 +18,7 @@ function create_SPulseGraph(G::Graph, α::Float64, covariance_dict::DefaultDict{
         "pruned_by_bounds" => 0,
         "pruned_by_feasibility" => 0
         )
-    return SPulseGraph(G, α, covariance_dict, Vector{Float64}(), Vector{Float64}(), Vector{Float64}(), Vector{Int}(), Inf64, T_max, source_node, target_node, instance_info, Vector{Int}())
+    return SPulseGraph(G, α, covariance_dict, Vector{Float64}(), Vector{Float64}(), Vector{Float64}(), Vector{Int}(), Inf64, T_max, source_node, target_node, instance_info)
 end
 
 # Preprocess the graph labeling every node with the shortest mean and variance paths to the end node (target)
@@ -32,15 +31,6 @@ function preprocess!(sp::SPulseGraph)
     sp.mean_costs = dijkstra(sp.G, sp.target_node, "mean")
 end
 
-function preprocess2!(sp::SPulseGraph)
-    data = CSV.read("minimum_costs_ChicagoRegional.csv", DataFrame)
-    sp.minimum_costs =  data[:, 1] |> collect
-    data = CSV.read("mean_costs_ChicagoRegional.csv", DataFrame)
-    sp.mean_costs =  data[:, 1] |> collect
-    data = CSV.read("variance_costs_ChicagoRegional.csv", DataFrame)
-    sp.variance_costs =  data[:, 1] |> collect
-end
-
 # Check Feasibility (true if feasible, false otherwise)
 function C_Feasibility(sp::SPulseGraph, current_node::Int, mean_path::Float64, variance_path::Float64, covariance_term_path::Float64, path::Vector{Int})
     bool = true
@@ -51,28 +41,10 @@ function C_Feasibility(sp::SPulseGraph, current_node::Int, mean_path::Float64, v
     if sp.T_max >= mean && prob < sp.α
         bool = false
         sp.instance_info["pruned_by_feasibility"] = sp.instance_info["pruned_by_feasibility"] + 1
-        check = copy(path)
-        check = push!(check, current_node)
-        if check == sp.check_path[1:length(path)+1]
-            println("Pruned by Feasibility 1 FAIL")
-            println(current_node)
-            println(path)
-            println(mean)
-            println(variance_path)
-            println(covariance_term_path)
-            println(prob)
-        end
+        
     elseif sp.T_max < mean && sp.α > 0.5
         bool = false
         sp.instance_info["pruned_by_feasibility"] = sp.instance_info["pruned_by_feasibility"] + 1
-        check = copy(path)
-        check = push!(check, current_node)
-        if check == sp.check_path[1:length(path)+1]
-            println("Pruned by Feasibility 2 FAIL")
-            println(path)
-            println(mean)
-            println(sp.mean_costs[current_node])
-        end
     end
     return bool
 end
@@ -91,12 +63,6 @@ function C_Bounds(sp::SPulseGraph, current_node::Int, cost::Float64, path::Vecto
         bool = true
     end
     if !bool
-        #if path is an initial subpath of the check path, println
-        check = copy(path)
-        check = push!(check, current_node)
-        if check == sp.check_path[1:length(path)+1]
-            println("Pruned by Bounds FAIL: $path")
-        end
         sp.instance_info["pruned_by_bounds"] = sp.instance_info["pruned_by_bounds"] + 1
     end
     return bool
@@ -141,15 +107,14 @@ function calculate_covariance_term(sp::SPulseGraph, reachable_node::Int, path::V
     end
 end
 
-function run_pulse(sp::SPulseGraph)
+function run_pulse(sp::SPulseGraph, optimal_path = Vector{Int}(), B = Inf)
     println("Running Pulse Algorithm")
     println("Source node: $(sp.source_node)")
     println("Target node: $(sp.target_node)")
     println("Time budget: $(sp.T_max)")
     path = Vector{Int}()
-    sp.optimal_path = Vector{Int}() #init optimal path as the minimum mean travel time if it is alpha reliable
-    sp.B = Inf
-    println(sp.B)
+    sp.optimal_path = optimal_path #init optimal path as the minimum mean travel time if it is alpha reliable
+    sp.B = B
     pulse(sp, sp.G.name_to_index[sp.source_node], 0.0, 0.0, 0.0, 0.0, path)
     return sp.optimal_path, sp.B, sp
 end

@@ -46,16 +46,6 @@ function get_covariance_dict(graph::Graph, ρ::Float64, max_depth::Int)
             end
         end
     end
-    #If the code below is commented, the cov matrix will not have an entry if covariance(i,j) = 0
-    #=
-    for link1 in keys(links)
-        for link2 in keys(links)
-            if !haskey(covariance_dict, (link1[1], link1[2], link2[1], link2[2]))
-                covariance_dict[(link1[1], link1[2], link2[1], link2[2])] = 0.0
-            end
-        end
-    end
-    =#
     return covariance_dict
 end
 
@@ -108,7 +98,6 @@ function get_timeBudget(graph::Graph, start_node::Int, target_node::Int, α::Flo
         error("T_t_α and T_c_α are equal")
     end
     T = T_t_α + (T_c_α - T_t_α) * (1 - γ)
-    #T = T_c_α
     return T, shortest_mean_path, shortest_cost_path, cost_min_mean, cost_min_cost
 end
 
@@ -171,7 +160,6 @@ function run_experiments_time(graph::Graph, source_node::String, target_node::St
     source_node = preprocess_experiments(pulse, folder_path, network_name, target_node) 
     T, shortest_mean_path, shortest_cost_path, cost_min_mean, cost_min_cost = get_timeBudget(graph, pulse.G.name_to_index[source_node], pulse.G.name_to_index[target_node], α, γ, covariance_dict)
     pulse.T_max = T
-    pulse.check_path = shortest_mean_path
     
     #get probability of the shortest mean path
     mean, variance, covariance_term = get_quantile_path(graph, shortest_cost_path, covariance_dict)
@@ -196,5 +184,5 @@ function run_experiments_time(graph::Graph, source_node::String, target_node::St
             run_pulse(pulse)
         end
     end
-    return elapsed_time, pulse.instance_info, (source_node, target_node), pulse.B, pulse.optimal_path
+    return elapsed_time, pulse.instance_info, (source_node, target_node), pulse.T_max, pulse.optimal_path
 end

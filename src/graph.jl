@@ -8,6 +8,7 @@ end
 mutable struct Node
     name::String
     links::Dict{Int, Link}
+    incoming_links::Dict{Int, Link}
 end
 
 mutable struct Graph
@@ -17,7 +18,7 @@ end
 
 function create_node!(graph::Graph, name::String)
     n = length(graph.nodes) + 1
-    node = Node(name, Dict{Int, Link}())
+    node = Node(name, Dict{Int, Link}(), Dict{Int, Link}())
     graph.nodes[n] = node
     graph.name_to_index[name] = n
     return n
@@ -39,6 +40,7 @@ function add_link!(graph::Graph, src_name::String, dst_name::String, cost::Float
     u = find_or_add!(graph, src_name)
     v = find_or_add!(graph, dst_name)
     graph.nodes[u].links[v] = Link(cost, mean, variance, 0)
+    graph.nodes[v].incoming_links[u] = Link(cost, mean, variance, 0)
 end
 
 function get_links(graph::Graph)
