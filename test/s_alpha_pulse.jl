@@ -3,7 +3,7 @@ using Test
 using DataStructures
 using Distributions
 
-@testset "s_alpha_pulse" begin
+@testset "s_alpha_pulse Test" begin
     G = Graph(Dict{Int, Node}(), Dict{String, Int}())
 
     create_node!(G, "1")

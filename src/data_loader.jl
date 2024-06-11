@@ -113,29 +113,6 @@ function load_ta_network(network_data_file,network_name)
 end 
 
 ### OUR FUNCTIONS ###
-struct DataLoader
-    graph::Graph
-    covariance_dict::Dict{Tuple{Int, Int, Int, Int}, Float64}
-end
-
-function load_covariance_dictionary(covariance_dir)
-    #The CSV file should have the columns start_node_1, end_node_1, start_node_2, end_node_2, covariance
-    df = CSV.File(covariance_dir) |> DataFrame
-    covariance_dict = Dict{Tuple{Int, Int, Int, Int}, Float64}()
-
-    for row in eachrow(df)
-        start1 = row.start_node_1
-        end1 = row.end_node_1
-        start2 = row.start_node_2
-        end2 = row.end_node_2
-        value = row.covariance
-        key = (start1, end1, start2, end2)
-        covariance_dict[key] = value
-    end
-    
-    return covariance_dict
-end
-
 function load_flowCost_from_ta(flow_file_dir:: String)
     cost_flow = Dict{Tuple{String, String}, Tuple{Float64, Float64}}()
     n = open(flow_file_dir, "r")
@@ -187,10 +164,4 @@ function load_graph_from_ta(tntp_file_dir::String, flow_file_dir:: String, netwo
         add_link!(new_graph, start, dst, cost, mean, variance)
     end
     return new_graph
-end
-
-function load_data(tntp_file_dir::String, flow_file_dir::String, network_name:: String, CV::Float64, toll_factor::Float64, length_factor::Float64)
-    @assert ispath(tntp_file_dir)
-    graph = load_graph_from_ta(tntp_file_dir, flow_file_dir, network_name, CV, toll_factor, length_factor)
-    return DataLoader(graph,Dict())
 end

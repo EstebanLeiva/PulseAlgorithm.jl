@@ -1,7 +1,7 @@
 using PulseAlgorithm
 using Test
 
-@testset "Dijkstra" begin
+@testset "Dijkstra Test" begin
     G = Graph(Dict{Int, Node}(), Dict{String, Int}())
 
     create_node!(G, "1")
@@ -30,5 +30,3 @@ using Test
     output_dijkstra_between2Nodes = dijkstra_between2Nodes(G, 6, 7, "cost")
     @test output_dijkstra_between2Nodes == [6, 4, 5, 7]
 end
-
-
