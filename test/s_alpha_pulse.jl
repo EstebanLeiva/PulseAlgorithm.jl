@@ -40,7 +40,7 @@ using Distributions
     @test pulse.variance_costs == [0.5, 1.0, 0.5, 5.0, 2.0, 1.0, 0.0]
 
     optimal_path, cost, _ = run_pulse(pulse)
-    mean, variance, covariance = get_quantile_path(G, optimal_path, covariance_dict)
+    mean, variance, covariance = get_path_distribution(G, optimal_path, covariance_dict)
     reliability = cdf(Normal(mean, √(variance + covariance)), T)
 
     @test optimal_path == [6, 1, 7]

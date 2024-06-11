@@ -1,4 +1,4 @@
-#Taken from the TrafficAssignment.jl library
+### TAKEN FROM TrafficAssignment.jl PACKAGE ###
 mutable struct TA_Data
     network_name::String
 
@@ -112,8 +112,7 @@ function load_ta_network(network_data_file,network_name)
 
 end 
 
-
-#Our own functions
+### OUR FUNCTIONS ###
 struct DataLoader
     graph::Graph
     covariance_dict::Dict{Tuple{Int, Int, Int, Int}, Float64}
@@ -163,7 +162,7 @@ function calculate_avg_fft_coefficient(ta_data::TA_Data)
     return sum / length(ta_data.free_flow_time)
 end
 
-function load_graph_from_ta(tntp_file_dir::String, flow_file_dir:: String, network_name::String, CV::Float64)
+function load_graph_from_ta(tntp_file_dir::String, flow_file_dir:: String, network_name::String, CV::Float64, toll_factor::Float64, length_factor::Float64)
     ta_data = load_ta_network(tntp_file_dir,network_name)
     new_graph = Graph(Dict{Int, Node}(), Dict{String, Int}())
 
@@ -172,14 +171,13 @@ function load_graph_from_ta(tntp_file_dir::String, flow_file_dir:: String, netwo
     end
 
     cost_flow = load_flowCost_from_ta(flow_file_dir)
-    avg_fft_coefficient = calculate_avg_fft_coefficient(ta_data)
-    toll_factor = 0.5 #parameter , 0.1 before
-    length_factor = 0.5 #parameter , 0.1 before
+    avg_fft_coefficient = calculate_avg_fft_coefficient(ta_data) 
+    
     for i in 1:length(ta_data.start_node)
         start = string(ta_data.start_node[i])
         dst = string(ta_data.end_node[i])
         if ta_data.free_flow_time[i] == 0
-            fft = ta_data.link_length[i] * avg_fft_coefficient
+            fft = ta_data.link_length[i] * avg_fft_coefficient #Replace zero entries with the average free flow time coefficient * link length
         else
             fft = ta_data.free_flow_time[i]
         end
@@ -191,8 +189,8 @@ function load_graph_from_ta(tntp_file_dir::String, flow_file_dir:: String, netwo
     return new_graph
 end
 
-function load_data(tntp_file_dir::String, flow_file_dir::String, network_name:: String, CV::Float64)
+function load_data(tntp_file_dir::String, flow_file_dir::String, network_name:: String, CV::Float64, toll_factor::Float64, length_factor::Float64)
     @assert ispath(tntp_file_dir)
-    graph = load_graph_from_ta(tntp_file_dir, flow_file_dir, network_name, CV)
+    graph = load_graph_from_ta(tntp_file_dir, flow_file_dir, network_name, CV, toll_factor, length_factor)
     return DataLoader(graph,Dict())
 end
