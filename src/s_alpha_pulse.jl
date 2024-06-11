@@ -17,8 +17,9 @@ function create_SPulseGraph(G::Graph, α::Float64, covariance_dict::DefaultDict{
     instance_info = Dict(
         "pruned_by_bounds" => 0,
         "pruned_by_feasibility" => 0, 
-        "list_length_pruned_by_bounds" => Vector{Int}(),
-        "list_length_pruned_by_feasibility" => Vector{Int}()
+        "total_length_pruned_by_bounds" => 0,
+        "total_length_pruned_by_feasibility" => 0,
+        "number_nondominanted_paths" => 0
         )
     return SPulseGraph(G, α, covariance_dict, Vector{Float64}(), Vector{Float64}(), Vector{Float64}(), Vector{Int}(), Inf64, T_max, source_node, target_node, instance_info)
 end
@@ -42,14 +43,14 @@ function C_Feasibility(sp::SPulseGraph, current_node::Int, mean_path::Float64, v
     prob = cdf(dist, sp.T_max)
     if sp.T_max >= mean && prob < sp.α
         bool = false
-        sp.instance_info["pruned_by_feasibility"] = sp.instance_info["pruned_by_feasibility"] + 1
-        sp.instance_info["list_length_pruned_by_feasibility"] = push!(sp.instance_info["list_length_pruned_by_feasibility"], length(path))
+        sp.instance_info["pruned_by_feasibility"] += 1
+        sp.instance_info["total_length_pruned_by_feasibility"] += length(path)
         
     elseif sp.T_max < mean && sp.α > 0.5
         bool = false
-        sp.instance_info["pruned_by_feasibility"] = sp.instance_info["pruned_by_feasibility"] + 1
-        sp.instance_info["list_length_pruned_by_feasibility"] = push!(sp.instance_info["list_length_pruned_by_feasibility"], length(path))
-    end
+        sp.instance_info["pruned_by_feasibility"] += 1
+        sp.instance_info["total_length_pruned_by_feasibility"] += length(path)
+        end
     return bool
 end
 
@@ -62,12 +63,13 @@ function C_Bounds(sp::SPulseGraph, current_node::Int, cost::Float64, path::Vecto
             new_path = copy(path)
             push!(new_path, current_node)
             sp.optimal_path = new_path
+            sp.instance_info["number_nondominanted_paths"] += 1
         end
         bool = true
     end
     if !bool
-        sp.instance_info["pruned_by_bounds"] = sp.instance_info["pruned_by_bounds"] + 1
-        sp.instance_info["list_length_pruned_by_bounds"] = push!(sp.instance_info["list_length_pruned_by_bounds"], length(path))
+        sp.instance_info["pruned_by_bounds"] += 1
+        sp.instance_info["total_length_pruned_by_bounds"] += length(path)
     end
     return bool
 end
@@ -111,7 +113,6 @@ function calculate_covariance_term(sp::SPulseGraph, reachable_node::Int, path::V
 end
 
 function run_pulse(sp::SPulseGraph, optimal_path = Vector{Int}(), B = Inf)
-    println("Running Pulse Algorithm")
     path = Vector{Int}()
     sp.optimal_path = optimal_path #init optimal path as  user-specified if it is alpha reliable
     sp.B = B #init B as the cost of a user-specified path if it is alpha reliable

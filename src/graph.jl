@@ -43,16 +43,6 @@ function add_link!(graph::Graph, src_name::String, dst_name::String, cost::Float
     graph.nodes[v].incoming_links[u] = Link(cost, mean, variance, 0)
 end
 
-function get_links(graph::Graph)
-    links = Vector{Tuple{Int, Int}}()
-    for (u, node) in graph.nodes
-        for v in keys(node.links)
-            push!(links, (u, v))
-        end
-    end
-    return links
-end
-
 function get_links_info(graph::Graph)
     links = Dict{Tuple{Int, Int}, Tuple{Float64, Float64, Float64}}()
     for (u, node) in graph.nodes

@@ -24,8 +24,6 @@ using Distributions
     add_link!(G, "4", "5", 1.0, 3.0, 3.0)
     add_link!(G, "5", "e", 1.0, 2.0, 2.0)
 
-    @info "Graph created"
-
     T = 10.0
     α = 0.9
     covariance_dict = DefaultDict{Tuple{Int, Int, Int, Int}, Float64}(0.0) 

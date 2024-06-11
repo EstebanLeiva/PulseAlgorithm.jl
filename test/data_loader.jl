@@ -10,6 +10,7 @@
     @test graph.nodes[1].name == "1"
     @test graph.nodes[2].name == "2"
     @test haskey(graph.nodes[1].links, 2)
+    @test haskey(graph.nodes[PulseAlgorithm.find(graph, "24")].links, PulseAlgorithm.find(graph,"23"))
     @test graph.nodes[1].links[2].mean - 6 * ( 1 + 0.15 * (6.0008162373543197/25900.20064)^4 ) < 1e-3
     @test graph.nodes[1].links[2].variance - CV * 6 * ( 1 + 0.15 * (6.0008162373543197/25900.20064)^4 ) < 1e-3
     @test graph.nodes[1].links[2].cost - (6 * ( 1 + 0.15 * (6.0008162373543197/25900.20064)^4 ) + toll_factor * 0 + distance_factor * 6) < 1e-3
