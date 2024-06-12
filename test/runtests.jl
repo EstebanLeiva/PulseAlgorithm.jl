@@ -1,5 +1,6 @@
 using Test
 using PulseAlgorithm
+const PA = PulseAlgorithm
 
 @testset "All Tests" begin
 

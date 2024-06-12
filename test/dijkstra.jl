@@ -1,6 +1,3 @@
-using PulseAlgorithm
-using Test
-
 @testset "Dijkstra Test" begin
     G = Graph(Dict{Int, Node}(), Dict{String, Int}())
 
@@ -22,10 +19,10 @@ using Test
     add_link!(G, "4", "5", 2.0, 2.0, 2.0)
     add_link!(G, "5", "e", 1.0, 1.0, 1.0)
 
-    output_dijkstra = dijkstra(G, "e", "cost")
+    output_dijkstra = PA.dijkstra(G, "e", "cost")
     @test output_dijkstra == [5.0, 2.0, 4.0, 3.0, 1.0, 4.0, 0.0]
 
-    output_dijkstra_between2Nodes = dijkstra_between2Nodes(G, 6, 7, "cost")
+    output_dijkstra_between2Nodes = PA.dijkstra_between2Nodes(G, 6, 7, "cost")
     @test output_dijkstra_between2Nodes == [6, 4, 5, 7]
 end
 
@@ -51,14 +48,14 @@ end
     add_link!(G, "4", "5", 2.0, 2.0, 2.0)
     add_link!(G, "5", "e", 1.0, 1.0, 1.0)
 
-    @test PulseAlgorithm.find(G, "N") == 8
+    @test PA.find(G, "N") == 8
 
-    output_dijkstra = dijkstra(G, "e", "cost")
+    output_dijkstra = PA.dijkstra(G, "e", "cost")
     @test output_dijkstra == [5.0, 2.0, 4.0, 3.0, 1.0, 4.0, 0.0, Inf]
 
-    output_dijkstra = dijkstra(G, "N", "cost")
+    output_dijkstra = PA.dijkstra(G, "N", "cost")
     @test output_dijkstra == [Inf, Inf, Inf, Inf, Inf, Inf, Inf, 0.0]
 
-    output_dijkstra_between2Nodes = dijkstra_between2Nodes(G, 6, 8, "cost")
+    output_dijkstra_between2Nodes = PA.dijkstra_between2Nodes(G, 6, 8, "cost")
     @test output_dijkstra_between2Nodes == []
 end

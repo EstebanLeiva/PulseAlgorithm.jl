@@ -1,5 +1,3 @@
-using PulseAlgorithm
-using Test
 using DataStructures
 using Distributions
 
@@ -30,15 +28,15 @@ using Distributions
     covariance_dict[(6, 4, 4, 5)] = 1.0
     covariance_dict[(6, 1, 1, 7)] = 1.0
 
-    pulse = create_SPulseGraph(G, α, covariance_dict, "s", "e", T)
-    preprocess!(pulse)
+    pulse = PA.create_SPulseGraph(G, α, covariance_dict, "s", "e", T)
+    PA.preprocess!(pulse)
 
     @test pulse.minimum_costs == [3.0, 5.0, 4.0, 2.0, 1.0, 3.0, 0.0]
     @test pulse.mean_costs == [2.0, 9.0, 1.0, 5.0, 2.0, 2.0, 0.0]
     @test pulse.variance_costs == [0.5, 1.0, 0.5, 5.0, 2.0, 1.0, 0.0]
 
-    optimal_path, cost, _ = run_pulse(pulse)
-    mean, variance, covariance = get_path_distribution(G, optimal_path, covariance_dict)
+    optimal_path, cost, _ = PA.run_pulse(pulse)
+    mean, variance, covariance = PA.get_path_distribution(G, optimal_path, covariance_dict)
     reliability = cdf(Normal(mean, √(variance + covariance)), T)
 
     @test optimal_path == [6, 1, 7]
