@@ -13,5 +13,5 @@ include("dijkstra.jl")
 include("s_alpha_pulse.jl")
 include("util.jl")
 
-export Graph, Node, Link, create_node!, add_link!
+export Graph, Node, Link, create_node!, add_link!, SPulseGraph
 end
