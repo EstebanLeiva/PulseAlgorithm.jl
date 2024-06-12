@@ -81,7 +81,11 @@ function pulse(sp::SPulseGraph, current_node::Int, cost::Float64, mean_path::Flo
             push!(path, current_node)
             link_dict = sp.G.nodes[current_node].links 
             if path[end] ≠ sp.G.name_to_index[sp.target_node]
-                ordered_reachable_nodes = sort(collect(keys(link_dict)), by=x->sp.minimum_costs[x]) # we explore first the nodes with minimum cost to the end node
+                if sp.B != Inf
+                    ordered_reachable_nodes = sort(collect(keys(link_dict)), by=x->sp.minimum_costs[x]) # we explore first the nodes with minimum cost to the end node
+                else
+                    ordered_reachable_nodes = sort(collect(keys(link_dict)), by=x->sp.mean_costs[x]) # we explore first the nodes with minimum mean to the end node
+                end
                 for reachable_node in ordered_reachable_nodes
                     if reachable_node ∉ path
                         inside_path = copy(path)
