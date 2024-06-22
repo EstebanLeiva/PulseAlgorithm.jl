@@ -1,13 +1,13 @@
 mutable struct SPulseGraph
     G::Graph
-    α::Float64 # reliability threshold
-    covariance_dict::DefaultDict{Tuple{Int, Int, Int, Int}, Float64} # Σ
-    minimum_costs::Vector{Float64} # m_c
-    variance_costs::Vector{Float64} # m_σ^2
-    mean_costs::Vector{Float64} # m_μ
+    α::Float64
+    covariance_dict::DefaultDict{Tuple{Int, Int, Int, Int}, Float64}
+    minimum_costs::Vector{Float64}
+    variance_costs::Vector{Float64} 
+    mean_costs::Vector{Float64} 
     optimal_path::Vector{Int}
-    B::Float64 # Primal Bound
-    T_max::Float64 # Time budget
+    B::Float64 
+    T_max::Float64 
     source_node::String 
     target_node::String
     instance_info::Dict{String, Any}
@@ -24,7 +24,6 @@ function create_SPulseGraph(G::Graph, α::Float64, covariance_dict::DefaultDict{
     return SPulseGraph(G, α, covariance_dict, Vector{Float64}(), Vector{Float64}(), Vector{Float64}(), Vector{Int}(), Inf64, T_max, source_node, target_node, instance_info)
 end
 
-# Preprocess the graph labeling every node with the shortest mean and variance paths to the end node (target)
 function preprocess!(sp::SPulseGraph)
     sp.minimum_costs = dijkstra(sp.G, sp.target_node, "cost")
     if sp.minimum_costs[sp.G.name_to_index[sp.source_node]] == Inf
@@ -34,7 +33,6 @@ function preprocess!(sp::SPulseGraph)
     sp.mean_costs = dijkstra(sp.G, sp.target_node, "mean")
 end
 
-# Check Feasibility (true if feasible, false otherwise)
 function C_Feasibility(sp::SPulseGraph, current_node::Int, mean_path::Float64, variance_path::Float64, covariance_term_path::Float64, path::Vector{Int})
     bool = true
     mean = mean_path + sp.mean_costs[current_node]
@@ -54,7 +52,6 @@ function C_Feasibility(sp::SPulseGraph, current_node::Int, mean_path::Float64, v
     return bool
 end
 
-# Check Bounds (true if less than B, false otherwise)
 function C_Bounds(sp::SPulseGraph, current_node::Int, cost::Float64, path::Vector{Int})
     bool = false
     if cost + sp.minimum_costs[current_node] <= sp.B
@@ -73,7 +70,6 @@ function C_Bounds(sp::SPulseGraph, current_node::Int, cost::Float64, path::Vecto
     end
     return bool
 end
-
 
 function pulse(sp::SPulseGraph, current_node::Int, cost::Float64, mean_path::Float64, variance_path::Float64, covariance_term_path::Float64, path::Vector{Int})
     if C_Feasibility(sp, current_node, mean_path, variance_path, covariance_term_path, path)
