@@ -1,4 +1,4 @@
-mutable struct SPulseGraph
+mutable struct SarPulse
     G::Graph
     α::Float64
     covariance_dict::DefaultDict{Tuple{Int, Int, Int, Int}, Float64}
@@ -13,7 +13,7 @@ mutable struct SPulseGraph
     instance_info::Dict{String, Any}
 end
 
-function create_SPulseGraph(G::Graph, α::Float64, covariance_dict::DefaultDict{Tuple{Int, Int, Int, Int}, Float64}, source_node::String, target_node::String, T_max::Float64)
+function initialize(G::Graph, α::Float64, covariance_dict::DefaultDict{Tuple{Int, Int, Int, Int}, Float64}, source_node::String, target_node::String, T_max::Float64)
     instance_info = Dict(
         "pruned_by_bounds" => 0,
         "pruned_by_feasibility" => 0, 
@@ -21,10 +21,10 @@ function create_SPulseGraph(G::Graph, α::Float64, covariance_dict::DefaultDict{
         "total_length_pruned_by_feasibility" => 0,
         "number_nondominanted_paths" => 0
         )
-    return SPulseGraph(G, α, covariance_dict, Vector{Float64}(), Vector{Float64}(), Vector{Float64}(), Vector{Int}(), Inf64, T_max, source_node, target_node, instance_info)
+    return SarPulse(G, α, covariance_dict, Vector{Float64}(), Vector{Float64}(), Vector{Float64}(), Vector{Int}(), Inf64, T_max, source_node, target_node, instance_info)
 end
 
-function preprocess!(sp::SPulseGraph)
+function preprocess!(sp::SarPulse)
     sp.minimum_costs = dijkstra(sp.G, sp.target_node, "cost")
     if sp.minimum_costs[sp.G.name_to_index[sp.source_node]] == Inf
         error("The source node is not reachable from the target node")
@@ -33,7 +33,7 @@ function preprocess!(sp::SPulseGraph)
     sp.mean_costs = dijkstra(sp.G, sp.target_node, "mean")
 end
 
-function C_Feasibility(sp::SPulseGraph, current_node::Int, mean_path::Float64, variance_path::Float64, covariance_term_path::Float64, path::Vector{Int})
+function check_feasibility(sp::SarPulse, current_node::Int, mean_path::Float64, variance_path::Float64, covariance_term_path::Float64, path::Vector{Int})
     bool = true
     mean = mean_path + sp.mean_costs[current_node]
     variance =  variance_path + covariance_term_path + sp.variance_costs[current_node]
@@ -52,7 +52,7 @@ function C_Feasibility(sp::SPulseGraph, current_node::Int, mean_path::Float64, v
     return bool
 end
 
-function C_Bounds(sp::SPulseGraph, current_node::Int, cost::Float64, path::Vector{Int})
+function check_bounds(sp::SarPulse, current_node::Int, cost::Float64, path::Vector{Int})
     bool = false
     if cost + sp.minimum_costs[current_node] <= sp.B
         if current_node == sp.G.name_to_index[sp.target_node]
@@ -71,9 +71,9 @@ function C_Bounds(sp::SPulseGraph, current_node::Int, cost::Float64, path::Vecto
     return bool
 end
 
-function pulse(sp::SPulseGraph, current_node::Int, cost::Float64, mean_path::Float64, variance_path::Float64, covariance_term_path::Float64, path::Vector{Int})
-    if C_Feasibility(sp, current_node, mean_path, variance_path, covariance_term_path, path)
-        if C_Bounds(sp, current_node, cost, path)
+function pulse(sp::SarPulse, current_node::Int, cost::Float64, mean_path::Float64, variance_path::Float64, covariance_term_path::Float64, path::Vector{Int})
+    if check_feasibility(sp, current_node, mean_path, variance_path, covariance_term_path, path)
+        if check_bounds(sp, current_node, cost, path)
             push!(path, current_node)
             link_dict = sp.G.nodes[current_node].links 
             if path[end] ≠ sp.G.name_to_index[sp.target_node]
@@ -97,7 +97,15 @@ function pulse(sp::SPulseGraph, current_node::Int, cost::Float64, mean_path::Flo
     end
 end
 
-function calculate_covariance_term(sp::SPulseGraph, reachable_node::Int, path::Vector{Int})
+function run_pulse(sp::SarPulse, optimal_path = Vector{Int}(), B = Inf)
+    path = Vector{Int}()
+    sp.optimal_path = optimal_path #init optimal path as  user-specified if it is alpha reliable
+    sp.B = B #init B as the cost of a user-specified path if it is alpha reliable
+    pulse(sp, sp.G.name_to_index[sp.source_node], 0.0, 0.0, 0.0, 0.0, path)
+    return sp.optimal_path, sp.B, sp
+end
+
+function calculate_covariance_term(sp::SarPulse, reachable_node::Int, path::Vector{Int})
     n = length(path)
     if n > 1
         last_node = path[end]
@@ -110,12 +118,4 @@ function calculate_covariance_term(sp::SPulseGraph, reachable_node::Int, path::V
     else
         return 0.0
     end
-end
-
-function run_pulse(sp::SPulseGraph, optimal_path = Vector{Int}(), B = Inf)
-    path = Vector{Int}()
-    sp.optimal_path = optimal_path #init optimal path as  user-specified if it is alpha reliable
-    sp.B = B #init B as the cost of a user-specified path if it is alpha reliable
-    pulse(sp, sp.G.name_to_index[sp.source_node], 0.0, 0.0, 0.0, 0.0, path)
-    return sp.optimal_path, sp.B, sp
 end

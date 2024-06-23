@@ -43,7 +43,7 @@ function dijkstra(graph::Graph, target_node::String, path::String)
     return cost
 end
 
-function dijkstra_between2Nodes(graph::Graph, start_node::Int, target_node::Int, type::String)
+function dijkstra_between_nodes(graph::Graph, start_node::Int, target_node::Int, type::String)
     # Initialization
     dist = Vector{Float64}()
     prev = Vector{Int}()

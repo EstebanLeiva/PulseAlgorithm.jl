@@ -1,4 +1,4 @@
-mutable struct ERSPAstar
+mutable struct ErspaStar
     G::Graph
     α::Float64
     covariance_dict::DefaultDict{Tuple{Int, Int, Int, Int}, Float64} 
@@ -12,33 +12,28 @@ mutable struct ERSPAstar
     SE::PriorityQueue{Vector{Int}, Float64}
 end
 
-function create_ERSPAstar(G::Graph, α::Float64, covariance_dict::DefaultDict{Tuple{Int, Int, Int, Int}, Float64}, node_coordinates::Vector{Tuple{Float64, Float64}}, source_node::String, target_node::String)
+function initialize(G::Graph, α::Float64, covariance_dict::DefaultDict{Tuple{Int, Int, Int, Int}, Float64}, node_coordinates::Vector{Tuple{Float64, Float64}}, source_node::String, target_node::String)
     instance_info = Dict(
         "number_nondominanted_paths" => 0
         )
     source_node = G.name_to_index[source_node]
     target_node = G.name_to_index[target_node]
-    return ERSPAstar(G, α, covariance_dict, node_coordinates, Vector{Float64}(undef, length(G.nodes)), Vector{Int}(), source_node, target_node, instance_info, Dict{Tuple{Int, Int}, PriorityQueue{Vector{Int}, Float64}}(), PriorityQueue{Vector{Int}, Float64}())
+    return ErspaStar(G, α, covariance_dict, node_coordinates, Vector{Float64}(undef, length(G.nodes)), Vector{Int}(), source_node, target_node, instance_info, Dict{Tuple{Int, Int}, PriorityQueue{Vector{Int}, Float64}}(), PriorityQueue{Vector{Int}, Float64}())
 end
 
-function preprocess_ERSPAstar!(erspa::ERSPAstar)
-    euclidean_distance!(erspa)
-end
-
-function euclidean_distance!(erspa::ERSPAstar)
+function preprocess!(erspa::ErspaStar)
     for (node, _ ) in erspa.G.nodes
         erspa.node_distances[node] = sqrt((erspa.node_coordinates[node][1] - erspa.node_coordinates[erspa.target_node][1])^2 + (erspa.node_coordinates[node][2] - erspa.node_coordinates[erspa.target_node][2])^2)
     end
 end
 
-function F(erspa::ERSPAstar, path::Vector{Int})
+function heuristic_function(erspa::ErspaStar, path::Vector{Int})
     mean, variance_term, covariance_term = get_path_distribution(erspa.G, path, erspa.covariance_dict)
     dist = Normal(mean, √(variance_term + covariance_term))
-    f = quantile(dist, erspa.α) + erspa.node_distances[path[end]]
-    return f
+    return quantile(dist, erspa.α) + erspa.node_distances[path[end]]
 end
 
-function check_MC_link(erspa::ERSPAstar, link::Tuple{Int, Int} )
+function check_mc_link(erspa::ErspaStar, link::Tuple{Int, Int} )
     if isempty(keys(erspa.G.nodes[link[2]].links))
         return false
     end
@@ -58,7 +53,7 @@ function check_MC_link(erspa::ERSPAstar, link::Tuple{Int, Int} )
     return false     
 end
 
-function check_PC_link(erspa::ERSPAstar, link::Tuple{Int, Int})
+function check_pc_link(erspa::ErspaStar, link::Tuple{Int, Int})
     if isempty(keys(erspa.G.nodes[link[2]].links))
         return true
     end
@@ -71,7 +66,7 @@ function check_PC_link(erspa::ERSPAstar, link::Tuple{Int, Int})
     return true
 end
 
-function check_NC_link(erspa::ERSPAstar, link::Tuple{Int, Int})
+function check_nc_link(erspa::ErspaStar, link::Tuple{Int, Int})
     if isempty(keys(erspa.G.nodes[link[2]].links))
         return false
     end
@@ -84,7 +79,7 @@ function check_NC_link(erspa::ERSPAstar, link::Tuple{Int, Int})
     return true
 end
 
-function check_MB_dominance(erspa::ERSPAstar, path::Vector{Int})
+function check_mb_dominance(erspa::ErspaStar, path::Vector{Int})
     link = (path[end-1], path[end])
     mean_u, variance_term_u, covariance_term_u = get_path_distribution(erspa.G, path, erspa.covariance_dict)
     dist_u = Normal(mean_u, √(variance_term_u + covariance_term_u))
@@ -106,11 +101,11 @@ function check_MB_dominance(erspa::ERSPAstar, path::Vector{Int})
     return false
 end
 
-function check_dominance(erspa::ERSPAstar, path::Vector{Int})
+function check_dominance(erspa::ErspaStar, path::Vector{Int})
      link = (path[end-1], path[end])
-     if check_PC_link(erspa, link)
+     if check_pc_link(erspa, link)
          β = erspa.α
-     elseif check_NC_link(erspa, link) || check_MC_link(erspa, link)
+     elseif check_nc_link(erspa, link) || check_mc_link(erspa, link)
          if erspa.α > 0.5
              β = 0.999
          elseif erspa.α == 0.5
@@ -161,16 +156,16 @@ function check_dominance(erspa::ERSPAstar, path::Vector{Int})
     return false, P_d
 end
 
-function initialization!(erspa::ERSPAstar)
+function initialization!(erspa::ErspaStar)
     for (reachable_node, link) in erspa.G.nodes[erspa.source_node].links
         path = [erspa.source_node, reachable_node]
         erspa.non_dominated_paths[(erspa.source_node, reachable_node)] = PriorityQueue{Vector{Int}, Float64}()
         enqueue!(erspa.non_dominated_paths[(erspa.source_node, reachable_node)], path, link.mean)
-        enqueue!(erspa.SE, path, F(erspa, path))
+        enqueue!(erspa.SE, path, heuristic_function(erspa, path))
     end
 end
 
-function path_selection(erspa::ERSPAstar)
+function path_selection(erspa::ErspaStar)
     if isempty(erspa.SE)
         return false, []
     end
@@ -182,20 +177,20 @@ function path_selection(erspa::ERSPAstar)
     return true, path
 end
 
-function path_extension(erspa::ERSPAstar, path::Vector{Int}, input_link::Tuple{Int, Int})
-    println("MC: ", check_MC_link(erspa, input_link))
-    if check_MC_link(erspa, input_link) 
-        MB = check_MB_dominance(erspa, path)
+function path_extension(erspa::ErspaStar, path::Vector{Int}, input_link::Tuple{Int, Int})
+    println("MC: ", check_mc_link(erspa, input_link))
+    if check_mc_link(erspa, input_link) 
+        MB = check_mb_dominance(erspa, path)
     end
     for (reachable_node, link) in erspa.G.nodes[input_link[2]].links
-        if check_MC_link(erspa, input_link)
+        if check_mc_link(erspa, input_link)
             if MB && erspa.covariance_dict[input_link[1], input_link[2], input_link[2], reachable_node] >= 0
                 continue
             end
         end   
         new_path = copy(path)
         push!(new_path, reachable_node)
-        f = F(erspa, new_path)
+        f = heuristic_function(erspa, new_path)
         dominated, P_d = check_dominance(erspa, new_path)
         println("P_d: ", P_d)
         if !dominated
@@ -207,7 +202,7 @@ function path_extension(erspa::ERSPAstar, path::Vector{Int}, input_link::Tuple{I
     end
 end
 
-function run_erspa(erspa::ERSPAstar)
+function run_erspa(erspa::ErspaStar)
     initialization!(erspa)
     while true
         println(erspa.SE)

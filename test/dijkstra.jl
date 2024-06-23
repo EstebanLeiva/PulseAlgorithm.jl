@@ -22,8 +22,8 @@
     output_dijkstra = PA.dijkstra(G, "e", "cost")
     @test output_dijkstra == [5.0, 2.0, 4.0, 3.0, 1.0, 4.0, 0.0]
 
-    output_dijkstra_between2Nodes = PA.dijkstra_between2Nodes(G, 6, 7, "cost")
-    @test output_dijkstra_between2Nodes == [6, 4, 5, 7]
+    output_dijkstra_between_nodes = PA.dijkstra_between_nodes(G, 6, 7, "cost")
+    @test output_dijkstra_between_nodes == [6, 4, 5, 7]
 end
 
 @testset "Dijkstra Not Connected Test" begin
@@ -56,6 +56,6 @@ end
     output_dijkstra = PA.dijkstra(G, "N", "cost")
     @test output_dijkstra == [Inf, Inf, Inf, Inf, Inf, Inf, Inf, 0.0]
 
-    output_dijkstra_between2Nodes = PA.dijkstra_between2Nodes(G, 6, 8, "cost")
-    @test output_dijkstra_between2Nodes == []
+    output_dijkstra_between_nodes = PA.dijkstra_between_nodes(G, 6, 8, "cost")
+    @test output_dijkstra_between_nodes == []
 end
