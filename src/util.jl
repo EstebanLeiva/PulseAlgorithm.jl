@@ -47,3 +47,14 @@ function get_covariance_dict(graph::Graph, ρ::Float64, max_depth::Int)
     end
     return covariance_dict
 end
+
+function get_higher_priority_paths(pq::PriorityQueue, element::Vector{Int})
+    temp_pq = copy(pq) 
+    while !isempty(temp_pq)
+        (k, v) = dequeue!(temp_pq)
+        if k == element
+            return temp_pq
+        end
+    end
+    return temp_pq
+end
