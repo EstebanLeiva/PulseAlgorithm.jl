@@ -182,24 +182,23 @@ end
     add_link!(G, "4", "5", 1.0, 3.0, 3.0)
     add_link!(G, "5", "e", 1.0, 2.0, 2.0)
 
-    T = 10.0
     α = 0.9
     covariance_dict = DefaultDict{Tuple{Int, Int, Int, Int}, Float64}(0.0) 
     covariance_dict[(6, 4, 4, 5)] = 1.0
     covariance_dict[(6, 1, 1, 7)] = 1.0
 
-    pulse = PA.initialize(G, α, covariance_dict, "s", "e", T)
-    PA.preprocess!(pulse)
+    node_coordinates = Vector{Tuple{Float64, Float64}}()
+    push!(node_coordinates, (2.0, 3.0))
+    push!(node_coordinates, (2.0, 4.0))
+    push!(node_coordinates, (2.0, 2.0))
+    push!(node_coordinates, (2.0, 1.0))
+    push!(node_coordinates, (3.0, 1.0))
+    push!(node_coordinates, (1.0, 3.0))
+    push!(node_coordinates, (3.0, 3.0))
 
-    @test pulse.minimum_costs == [3.0, 5.0, 4.0, 2.0, 1.0, 3.0, 0.0]
-    @test pulse.mean_costs == [2.0, 9.0, 1.0, 5.0, 2.0, 2.0, 0.0]
-    @test pulse.variance_costs == [0.5, 1.0, 0.5, 5.0, 2.0, 1.0, 0.0]
+    erspa = PA.initialize(G, α, covariance_dict, node_coordinates, "s", "e")
+    PA.preprocess!(erspa)
+    sol_erspa = PA.run_erspa(erspa)
 
-    optimal_path, cost, _ = PA.run_pulse(pulse)
-    mean, variance, covariance = PA.get_path_distribution(G, optimal_path, covariance_dict)
-    reliability = cdf(Normal(mean, √(variance + covariance)), T)
-
-    @test optimal_path == [6, 1, 7]
-    @test cost == 5.0
-    @test reliability >= 0.99
+    @test sol_erspa.optimal_path == [6, 3, 7]
 end
