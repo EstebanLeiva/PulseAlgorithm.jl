@@ -19,7 +19,7 @@
     add_link!(G, "4", "5", 2.0, 2.0, 2.0)
     add_link!(G, "5", "e", 1.0, 1.0, 1.0)
 
-    output_dijkstra = PA.dijkstra(G, "e", "cost")
+    output_dijkstra = PA.dijkstra(G, 7, "cost")
     @test output_dijkstra == [5.0, 2.0, 4.0, 3.0, 1.0, 4.0, 0.0]
 
     output_dijkstra_between_nodes = PA.dijkstra_between_nodes(G, 6, 7, "cost")
@@ -50,10 +50,10 @@ end
 
     @test PA.find(G, "N") == 8
 
-    output_dijkstra = PA.dijkstra(G, "e", "cost")
+    output_dijkstra = PA.dijkstra(G, 7, "cost")
     @test output_dijkstra == [5.0, 2.0, 4.0, 3.0, 1.0, 4.0, 0.0, Inf]
 
-    output_dijkstra = PA.dijkstra(G, "N", "cost")
+    output_dijkstra = PA.dijkstra(G, 8, "cost")
     @test output_dijkstra == [Inf, Inf, Inf, Inf, Inf, Inf, Inf, 0.0]
 
     output_dijkstra_between_nodes = PA.dijkstra_between_nodes(G, 6, 8, "cost")

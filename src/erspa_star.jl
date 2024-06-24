@@ -173,12 +173,12 @@ function path_selection(erspa::ErspaStar)
     if path[end] == erspa.target_node
         return false, path
     end
-    println("Extended")
+    #println("Extended")
     return true, path
 end
 
 function path_extension(erspa::ErspaStar, path::Vector{Int}, input_link::Tuple{Int, Int})
-    println("MC: ", check_mc_link(erspa, input_link))
+   #println("MC: ", check_mc_link(erspa, input_link))
     if check_mc_link(erspa, input_link) 
         MB = check_mb_dominance(erspa, path)
     end
@@ -192,7 +192,7 @@ function path_extension(erspa::ErspaStar, path::Vector{Int}, input_link::Tuple{I
         push!(new_path, reachable_node)
         f = heuristic_function(erspa, new_path)
         dominated, P_d = check_dominance(erspa, new_path)
-        println("P_d: ", P_d)
+        #println("P_d: ", P_d)
         if !dominated
             enqueue!(erspa.SE, new_path, f)
             for dominated_path in P_d
@@ -205,7 +205,7 @@ end
 function run_erspa(erspa::ErspaStar)
     initialization!(erspa)
     while true
-        println(erspa.SE)
+        #println(erspa.SE)
         ps = path_selection(erspa)
         if ps[1] == false && !isempty(ps[2])
             erspa.optimal_path = ps[2]
