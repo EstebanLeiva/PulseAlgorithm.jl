@@ -8,8 +8,8 @@ mutable struct SarPulse
     optimal_path::Vector{Int}
     B::Float64 
     T_max::Float64 
-    source_node::String 
-    target_node::String
+    source_node::Int 
+    target_node::Int
     instance_info::Dict{String, Any}
 end
 
@@ -21,12 +21,14 @@ function initialize(G::Graph, α::Float64, covariance_dict::DefaultDict{Tuple{In
         "total_length_pruned_by_feasibility" => 0,
         "number_nondominanted_paths" => 0
         )
+    source_node = G.name_to_index[source_node]
+    target_node = G.name_to_index[target_node]
     return SarPulse(G, α, covariance_dict, Vector{Float64}(), Vector{Float64}(), Vector{Float64}(), Vector{Int}(), Inf64, T_max, source_node, target_node, instance_info)
 end
 
 function preprocess!(sp::SarPulse)
     sp.minimum_costs = dijkstra(sp.G, sp.target_node, "cost")
-    if sp.minimum_costs[sp.G.name_to_index[sp.source_node]] == Inf
+    if sp.minimum_costs[sp.source_node] == Inf
         error("The source node is not reachable from the target node")
     end
     sp.variance_costs = dijkstra(sp.G, sp.target_node, "variance")
@@ -55,7 +57,7 @@ end
 function check_bounds(sp::SarPulse, current_node::Int, cost::Float64, path::Vector{Int})
     bool = false
     if cost + sp.minimum_costs[current_node] <= sp.B
-        if current_node == sp.G.name_to_index[sp.target_node]
+        if current_node == sp.target_node
             sp.B = cost
             new_path = copy(path)
             push!(new_path, current_node)
@@ -76,7 +78,7 @@ function pulse(sp::SarPulse, current_node::Int, cost::Float64, mean_path::Float6
         if check_bounds(sp, current_node, cost, path)
             push!(path, current_node)
             link_dict = sp.G.nodes[current_node].links 
-            if path[end] ≠ sp.G.name_to_index[sp.target_node]
+            if path[end] ≠ sp.target_node
                 if sp.B != Inf
                     ordered_reachable_nodes = sort(collect(keys(link_dict)), by=x->sp.minimum_costs[x]) # we explore first the nodes with minimum cost to the end node
                 else
@@ -101,7 +103,7 @@ function run_pulse(sp::SarPulse, optimal_path = Vector{Int}(), B = Inf)
     path = Vector{Int}()
     sp.optimal_path = optimal_path #init optimal path as  user-specified if it is alpha reliable
     sp.B = B #init B as the cost of a user-specified path if it is alpha reliable
-    pulse(sp, sp.G.name_to_index[sp.source_node], 0.0, 0.0, 0.0, 0.0, path)
+    pulse(sp, sp.source_node, 0.0, 0.0, 0.0, 0.0, path)
     return sp.optimal_path, sp.B, sp
 end
 

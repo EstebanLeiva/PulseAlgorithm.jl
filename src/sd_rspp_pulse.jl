@@ -7,8 +7,8 @@ mutable struct SdrsppPulse
     mean_costs::Vector{Float64} 
     optimal_path::Vector{Int}
     B::Float64 
-    source_node::String 
-    target_node::String
+    source_node::Int 
+    target_node::Int
     instance_info::Dict{String, Any}
 end
 
@@ -18,16 +18,17 @@ function initialize(G::Graph, α::Float64, covariance_dict::DefaultDict{Tuple{In
         "total_length_pruned_by_bounds" => 0,
         "number_nondominanted_paths" => 0
         )
+    source_node = G.name_to_index[source_node]
+    target_node = G.name_to_index[target_node]
     return SdrsppPulse(G, α, covariance_dict, Vector{Float64}(), Vector{Float64}(), Vector{Float64}(), Vector{Int}(), Inf64, source_node, target_node, instance_info)
 end
 
 function preprocess!(sdp::SdrsppPulse)
-    sdp.minimum_costs = dijkstra(sp.G, sp.target_node, "cost")
-    if sdp.minimum_costs[sp.G.name_to_index[sp.source_node]] == Inf
+    sdp.variance_costs = dijkstra(sdp.G, sdp.target_node, "variance")
+    if sdp.variance_costs[sdp.source_node] == Inf
         error("The source node is not reachable from the target node")
     end
-    sdp.variance_costs = dijkstra(sp.G, sp.target_node, "variance")
-    sdp.mean_costs = dijkstra(sp.G, sp.target_node, "mean")
+    sdp.mean_costs = dijkstra(sdp.G, sdp.target_node, "mean")
 end
 
 function modified_check_bounds(sdp::SdrsppPulse, current_node::Int, mean_path::Float64, variance_path::Float64, covariance_term_path::Float64, path::Vector{Int})
@@ -44,17 +45,17 @@ end
 function pulse(sdp::SdrsppPulse, current_node::Int, cost::Float64, mean_path::Float64, variance_path::Float64, covariance_term_path::Float64, path::Vector{Int})
     if modified_check_bounds(sdp, current_node, mean_path, variance_path, covariance_term_path, path)
         push!(path, current_node)
-        link_dict = sp.G.nodes[current_node].links 
-        if path[end] ≠ sp.G.name_to_index[sp.target_node]
-            ordered_reachable_nodes = sort(collect(keys(link_dict)), by=x->sp.mean_costs[x]) # we explore first the nodes with minimum mean to the end node
+        link_dict = sdp.G.nodes[current_node].links 
+        if path[end] ≠ sdp.target_node
+            ordered_reachable_nodes = sort(collect(keys(link_dict)), by=x->sdp.mean_costs[x]) # we explore first the nodes with minimum mean to the end node
             for reachable_node in ordered_reachable_nodes
                 if reachable_node ∉ path
                     inside_path = copy(path)
                     cost_copy = cost + link_dict[reachable_node].cost
                     mean_path_copy = mean_path + link_dict[reachable_node].mean
                     variance_path_copy = variance_path + link_dict[reachable_node].variance
-                    covariance_term_path_copy = covariance_term_path + calculate_covariance_term(sp, reachable_node, inside_path)
-                    pulse(sp, reachable_node, cost_copy, mean_path_copy, variance_path_copy, covariance_term_path_copy, inside_path)
+                    covariance_term_path_copy = covariance_term_path + calculate_covariance_term(sdp, reachable_node, inside_path)
+                    pulse(sdp, reachable_node, cost_copy, mean_path_copy, variance_path_copy, covariance_term_path_copy, inside_path)
                 end
             end
         end
@@ -63,22 +64,22 @@ end
 
 function run_pulse(sdp::SdrsppPulse)
     path = Vector{Int}()
-    sp.optimal_path = dijkstra_between_nodes(sdp.G, sdp.source_node, sdp.target_node, "mean") 
+    sdp.optimal_path = dijkstra_between_nodes(sdp.G, sdp.source_node, sdp.target_node, "mean") 
     mean, variance, covariance_term = get_path_distribution(sdp.G, sdp.optimal_path, sdp.covariance_dict)
     dist = Normal(mean, √(variance + covariance_term))
-    sp.B = quantile(dist, sdp.α)
-    pulse(sp, sp.G.name_to_index[sp.source_node], 0.0, 0.0, 0.0, 0.0, path)
-    return sp.optimal_path, sp.B, sp
+    sdp.B = quantile(dist, sdp.α)
+    pulse(sdp, sdp.source_node, 0.0, 0.0, 0.0, 0.0, path)
+    return sdp.optimal_path, sdp.B, sdp
 end
 
-function calculate_covariance_term(sp::SarPulse, reachable_node::Int, path::Vector{Int})
+function calculate_covariance_term(sdp::SdrsppPulse, reachable_node::Int, path::Vector{Int})
     n = length(path)
     if n > 1
         last_node = path[end]
         current_node = reachable_node
         covariance_sum = 0.0
         for i in 1:n-1
-            covariance_sum += 2 * sp.covariance_dict[(path[i], path[i+1], last_node, current_node)]
+            covariance_sum += 2 * sdp.covariance_dict[(path[i], path[i+1], last_node, current_node)]
         end
         return covariance_sum
     else

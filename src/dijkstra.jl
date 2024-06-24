@@ -1,5 +1,4 @@
-function dijkstra(graph::Graph, target_node::String, path::String)
-    target_node = graph.name_to_index[target_node]
+function dijkstra(graph::Graph, target_node::Int, path::String)
     n = length(graph.nodes)
     # Set the cost of the final node to 0 and the cost of all other nodes to infinity.
     cost = fill(Inf, n)
