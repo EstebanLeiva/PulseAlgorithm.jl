@@ -15,5 +15,5 @@ include("erspa_star.jl")
 include("sd_rspp_pulse.jl")
 include("util.jl")
 
-export Graph, Node, Link, create_node!, add_link!, SarPulse
+export Graph, Node, Link, create_node!, add_link!, SarPulse, SdrsppPulse
 end

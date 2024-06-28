@@ -36,8 +36,24 @@ function modified_check_bounds(sdp::SdrsppPulse, current_node::Int, mean_path::F
     variance =  variance_path + covariance_term_path + sdp.variance_costs[current_node]
     dist = Normal(mean, √variance)
     quant = quantile(dist, sdp.α)
-    if mean < sdp.B && quant > sdp.B
+    if mean <= sdp.B && quant > sdp.B
+        println("Pruned")
+        sdp.instance_info["pruned_by_bounds"] += 1
+        sdp.instance_info["total_length_pruned_by_bounds"] += length(path)
         return false
+    end
+    if mean > sdp.B && sdp.α >= 0.5
+        println("Pruned")
+        sdp.instance_info["pruned_by_bounds"] += 1
+        sdp.instance_info["total_length_pruned_by_bounds"] += length(path)
+        return false
+    end
+    if current_node == sdp.target_node && quant <= sdp.B
+        sdp.B = quant
+        new_path = copy(path)
+        push!(new_path, current_node)
+        sdp.optimal_path = new_path
+        sdp.instance_info["number_nondominanted_paths"] += 1
     end
     return true
 end
@@ -47,7 +63,7 @@ function pulse(sdp::SdrsppPulse, current_node::Int, cost::Float64, mean_path::Fl
         push!(path, current_node)
         link_dict = sdp.G.nodes[current_node].links 
         if path[end] ≠ sdp.target_node
-            ordered_reachable_nodes = sort(collect(keys(link_dict)), by=x->sdp.mean_costs[x]) # we explore first the nodes with minimum mean to the end node
+            ordered_reachable_nodes = sort(collect(keys(link_dict)), by=x->sdp.mean_costs[x])
             for reachable_node in ordered_reachable_nodes
                 if reachable_node ∉ path
                     inside_path = copy(path)
@@ -62,12 +78,10 @@ function pulse(sdp::SdrsppPulse, current_node::Int, cost::Float64, mean_path::Fl
     end
 end
 
-function run_pulse(sdp::SdrsppPulse)
+function run_pulse(sdp::SdrsppPulse, optimal_path = Vector{Int}(), B = Inf)
     path = Vector{Int}()
-    sdp.optimal_path = dijkstra_between_nodes(sdp.G, sdp.source_node, sdp.target_node, "mean") 
-    mean, variance, covariance_term = get_path_distribution(sdp.G, sdp.optimal_path, sdp.covariance_dict)
-    dist = Normal(mean, √(variance + covariance_term))
-    sdp.B = quantile(dist, sdp.α)
+    sdp.optimal_path = optimal_path
+    sdp.B = B
     pulse(sdp, sdp.source_node, 0.0, 0.0, 0.0, 0.0, path)
     return sdp.optimal_path, sdp.B, sdp
 end
