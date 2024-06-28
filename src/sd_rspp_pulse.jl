@@ -37,13 +37,11 @@ function modified_check_bounds(sdp::SdrsppPulse, current_node::Int, mean_path::F
     dist = Normal(mean, √variance)
     quant = quantile(dist, sdp.α)
     if mean <= sdp.B && quant > sdp.B
-        println("Pruned")
         sdp.instance_info["pruned_by_bounds"] += 1
         sdp.instance_info["total_length_pruned_by_bounds"] += length(path)
         return false
     end
     if mean > sdp.B && sdp.α >= 0.5
-        println("Pruned")
         sdp.instance_info["pruned_by_bounds"] += 1
         sdp.instance_info["total_length_pruned_by_bounds"] += length(path)
         return false
