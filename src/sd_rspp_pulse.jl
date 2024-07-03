@@ -9,6 +9,7 @@ mutable struct SdrsppPulse
     B::Float64 
     source_node::Int 
     target_node::Int
+    best_quantile_link::Dict{Tuple{Int, Int}, Float64}
     instance_info::Dict{String, Any}
 end
 
@@ -20,7 +21,7 @@ function initialize(G::Graph, α::Float64, covariance_dict::DefaultDict{Tuple{In
         )
     source_node = G.name_to_index[source_node]
     target_node = G.name_to_index[target_node]
-    return SdrsppPulse(G, α, covariance_dict, Vector{Float64}(), Vector{Float64}(), Vector{Float64}(), Vector{Int}(), Inf64, source_node, target_node, instance_info)
+    return SdrsppPulse(G, α, covariance_dict, Vector{Float64}(), Vector{Float64}(), Vector{Float64}(), Vector{Int}(), Inf64, source_node, target_node, Dict{Tuple{Int, Int}, Float64}(), instance_info)
 end
 
 function preprocess!(sdp::SdrsppPulse)
@@ -56,20 +57,44 @@ function modified_check_bounds(sdp::SdrsppPulse, current_node::Int, mean_path::F
     return true
 end
 
+function modified_check_dominance(sdp::SdrsppPulse, current_node::Int, mean_path::Float64, variance_path::Float64, covariance_term_path::Float64, path::Vector{Int})
+    mean = mean_path + sdp.mean_costs[current_node]
+    variance = variance_path + covariance_term_path + sdp.variance_costs[current_node]
+    dist = Normal(mean, √variance)
+    quant = quantile(dist, sdp.α)
+    if length(path) > 1
+        last_link = (path[end-1], path[end])
+        if !haskey(sdp.best_quantile_link, last_link)
+            sdp.best_quantile_link[last_link] = quant
+            return true
+        end
+        if quant > sdp.best_quantile_link[last_link]
+            return false
+        else
+            sdp.best_quantile_link[last_link] = quant
+            return true
+        end
+    else
+        return true
+    end
+end
+
 function pulse(sdp::SdrsppPulse, current_node::Int, cost::Float64, mean_path::Float64, variance_path::Float64, covariance_term_path::Float64, path::Vector{Int})
     if modified_check_bounds(sdp, current_node, mean_path, variance_path, covariance_term_path, path)
-        push!(path, current_node)
-        link_dict = sdp.G.nodes[current_node].links 
-        if path[end] ≠ sdp.target_node
-            ordered_reachable_nodes = sort(collect(keys(link_dict)), by=x->sdp.mean_costs[x])
-            for reachable_node in ordered_reachable_nodes
-                if reachable_node ∉ path
-                    inside_path = copy(path)
-                    cost_copy = cost + link_dict[reachable_node].cost
-                    mean_path_copy = mean_path + link_dict[reachable_node].mean
-                    variance_path_copy = variance_path + link_dict[reachable_node].variance
-                    covariance_term_path_copy = covariance_term_path + calculate_covariance_term(sdp, reachable_node, inside_path)
-                    pulse(sdp, reachable_node, cost_copy, mean_path_copy, variance_path_copy, covariance_term_path_copy, inside_path)
+        if modified_check_dominance(sdp, current_node, mean_path, variance_path, covariance_term_path, path)
+            push!(path, current_node)
+            link_dict = sdp.G.nodes[current_node].links 
+            if path[end] ≠ sdp.target_node
+                ordered_reachable_nodes = sort(collect(keys(link_dict)), by=x->sdp.mean_costs[x])
+                for reachable_node in ordered_reachable_nodes
+                    if reachable_node ∉ path
+                        inside_path = copy(path)
+                        cost_copy = cost + link_dict[reachable_node].cost
+                        mean_path_copy = mean_path + link_dict[reachable_node].mean
+                        variance_path_copy = variance_path + link_dict[reachable_node].variance
+                        covariance_term_path_copy = covariance_term_path + calculate_covariance_term(sdp, reachable_node, inside_path)
+                        pulse(sdp, reachable_node, cost_copy, mean_path_copy, variance_path_copy, covariance_term_path_copy, inside_path)
+                    end
                 end
             end
         end
