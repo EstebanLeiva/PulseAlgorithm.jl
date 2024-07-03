@@ -159,7 +159,7 @@ function load_graph_from_ta(tntp_file_dir::String, flow_file_dir:: String, netwo
             fft = ta_data.free_flow_time[i]
         end
         mean = fft * (1 + ta_data.B[i] * (cost_flow[(start,dst)][2] / ta_data.capacity[i]) ^ ta_data.power[i])
-        variance = mean*CV
+        variance = CV * (mean - fft)
         cost = mean + toll_factor * ta_data.toll[i] + length_factor * ta_data.link_length[i]
         add_link!(new_graph, start, dst, cost, mean, variance)
     end
