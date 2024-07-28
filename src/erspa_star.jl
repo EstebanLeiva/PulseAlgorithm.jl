@@ -152,7 +152,6 @@ function check_dominance(erspa::ErspaStar, path::Vector{Int})
             break
         end
     end
-
     return false, P_d
 end
 
@@ -173,40 +172,41 @@ function path_selection(erspa::ErspaStar)
     if path[end] == erspa.target_node
         return false, path
     end
-    #println("Extended")
+    #println("Select: ", path)
     return true, path
 end
 
-function path_extension(erspa::ErspaStar, path::Vector{Int}, input_link::Tuple{Int, Int})
-   #println("MC: ", check_mc_link(erspa, input_link))
-    if check_mc_link(erspa, input_link) 
-        MB = check_mb_dominance(erspa, path)
-    end
+function path_extension(erspa::ErspaStar, path::Vector{Int}, input_link::Tuple{Int, Int})    
     for (reachable_node, link) in erspa.G.nodes[input_link[2]].links
-        if check_mc_link(erspa, input_link)
+        if check_mc_link(erspa, input_link) 
+            MB = check_mb_dominance(erspa, path)
+            #println("MB: ", MB)
             if MB && erspa.covariance_dict[input_link[1], input_link[2], input_link[2], reachable_node] >= 0
+                #println("Scan Next Movement")
                 continue
             end
-        end   
-        new_path = copy(path)
-        push!(new_path, reachable_node)
-        f = heuristic_function(erspa, new_path)
-        dominated, P_d = check_dominance(erspa, new_path)
-        #println("P_d: ", P_d)
-        if !dominated
-            enqueue!(erspa.SE, new_path, f)
-            for dominated_path in P_d
-                delete!(erspa.SE, dominated_path)
+        else
+            new_path = copy(path)
+            push!(new_path, reachable_node)
+            f = heuristic_function(erspa, new_path)
+            dominated, P_d = check_dominance(erspa, new_path)
+            #println("Dominated: ", dominated)
+            if !dominated
+                enqueue!(erspa.SE, new_path, f)
+                for dominated_path in P_d
+                    delete!(erspa.SE, dominated_path)
+                end
             end
-        end
+        end 
     end
 end
 
 function run_erspa(erspa::ErspaStar)
     initialization!(erspa)
     while true
-        #println(erspa.SE)
+        #println("SE: ", erspa.SE)
         ps = path_selection(erspa)
+        #println("Selected: ", ps)
         if ps[1] == false && !isempty(ps[2])
             erspa.optimal_path = ps[2]
             return erspa

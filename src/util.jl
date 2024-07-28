@@ -58,3 +58,18 @@ function get_higher_priority_paths(pq::PriorityQueue, element::Vector{Int})
     end
     return temp_pq
 end
+
+function calculate_covariance_term(covariance_dict::DefaultDict{Tuple{Int, Int, Int, Int}, Float64}, reachable_node::Int, path::Vector{Int})
+    n = length(path)
+    if n > 1
+        last_node = path[end]
+        current_node = reachable_node
+        covariance_sum = 0.0
+        for i in 1:n-1
+            covariance_sum += 2 * covariance_dict[(path[i], path[i+1], last_node, current_node)]
+        end
+        return covariance_sum
+    else
+        return 0.0
+    end
+end
