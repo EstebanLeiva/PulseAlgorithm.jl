@@ -1,4 +1,4 @@
-mutable struct SarPulse
+mutable struct PaSarp
     G::Graph
     α::Float64
     covariance_dict::DefaultDict{Tuple{Int, Int, Int, Int}, Float64}
@@ -23,10 +23,10 @@ function initialize(G::Graph, α::Float64, covariance_dict::DefaultDict{Tuple{In
         )
     source_node = G.name_to_index[source_node]
     target_node = G.name_to_index[target_node]
-    return SarPulse(G, α, covariance_dict, Vector{Float64}(), Vector{Float64}(), Vector{Float64}(), Vector{Int}(), Inf64, T_max, source_node, target_node, instance_info)
+    return PaSarp(G, α, covariance_dict, Vector{Float64}(), Vector{Float64}(), Vector{Float64}(), Vector{Int}(), Inf64, T_max, source_node, target_node, instance_info)
 end
 
-function preprocess!(sp::SarPulse)
+function preprocess!(sp::PaSarp)
     sp.minimum_costs = dijkstra(sp.G, sp.target_node, "cost")
     if sp.minimum_costs[sp.source_node] == Inf
         error("The source node is not reachable from the target node")
@@ -35,7 +35,7 @@ function preprocess!(sp::SarPulse)
     sp.mean_costs = dijkstra(sp.G, sp.target_node, "mean")
 end
 
-function check_feasibility(sp::SarPulse, current_node::Int, mean_path::Float64, variance_path::Float64, covariance_term_path::Float64, path::Vector{Int})
+function check_feasibility(sp::PaSarp, current_node::Int, mean_path::Float64, variance_path::Float64, covariance_term_path::Float64, path::Vector{Int})
     bool = true
     mean = mean_path + sp.mean_costs[current_node]
     variance =  variance_path + covariance_term_path + sp.variance_costs[current_node]
@@ -54,7 +54,7 @@ function check_feasibility(sp::SarPulse, current_node::Int, mean_path::Float64, 
     return bool
 end
 
-function check_bounds(sp::SarPulse, current_node::Int, cost::Float64, path::Vector{Int})
+function check_bounds(sp::PaSarp, current_node::Int, cost::Float64, path::Vector{Int})
     bool = false
     if cost + sp.minimum_costs[current_node] <= sp.B
         if current_node == sp.target_node
@@ -73,7 +73,7 @@ function check_bounds(sp::SarPulse, current_node::Int, cost::Float64, path::Vect
     return bool
 end
 
-function pulse(sp::SarPulse, current_node::Int, cost::Float64, mean_path::Float64, variance_path::Float64, covariance_term_path::Float64, path::Vector{Int})
+function pulse(sp::PaSarp, current_node::Int, cost::Float64, mean_path::Float64, variance_path::Float64, covariance_term_path::Float64, path::Vector{Int})
     if check_feasibility(sp, current_node, mean_path, variance_path, covariance_term_path, path)
         if check_bounds(sp, current_node, cost, path)
             push!(path, current_node)
@@ -99,7 +99,7 @@ function pulse(sp::SarPulse, current_node::Int, cost::Float64, mean_path::Float6
     end
 end
 
-function run_pulse(sp::SarPulse, optimal_path = Vector{Int}(), B = Inf)
+function run_pulse(sp::PaSarp, optimal_path = Vector{Int}(), B = Inf)
     path = Vector{Int}()
     sp.optimal_path = optimal_path #init optimal path as  user-specified if it is alpha reliable
     sp.B = B #init B as the cost of a user-specified path if it is alpha reliable
@@ -107,7 +107,7 @@ function run_pulse(sp::SarPulse, optimal_path = Vector{Int}(), B = Inf)
     return sp.optimal_path, sp.B, sp
 end
 
-function calculate_covariance_term(sp::SarPulse, reachable_node::Int, path::Vector{Int})
+function calculate_covariance_term(sp::PaSarp, reachable_node::Int, path::Vector{Int})
     n = length(path)
     if n > 1
         last_node = path[end]

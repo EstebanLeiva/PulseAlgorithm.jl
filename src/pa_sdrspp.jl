@@ -1,4 +1,4 @@
-mutable struct SdrsppPulse
+mutable struct PaSdrspp
     G::Graph
     α::Float64
     covariance_dict::DefaultDict{Tuple{Int, Int, Int, Int}, Float64}
@@ -23,10 +23,10 @@ function initialize(G::Graph, α::Float64, covariance_dict::DefaultDict{Tuple{In
         )
     source_node = G.name_to_index[source_node]
     target_node = G.name_to_index[target_node]
-    return SdrsppPulse(G, α, covariance_dict, Vector{Float64}(), Vector{Float64}(), Vector{Float64}(), Vector{Int}(), Inf64, source_node, target_node, Dict{Tuple{Int, Int}, Float64}(), instance_info)
+    return PaSdrspp(G, α, covariance_dict, Vector{Float64}(), Vector{Float64}(), Vector{Float64}(), Vector{Int}(), Inf64, source_node, target_node, Dict{Tuple{Int, Int}, Float64}(), instance_info)
 end
 
-function preprocess!(sdp::SdrsppPulse)
+function preprocess!(sdp::PaSdrspp)
     sdp.variance_costs = dijkstra(sdp.G, sdp.target_node, "variance")
     if sdp.variance_costs[sdp.source_node] == Inf
         error("The source node is not reachable from the target node")
@@ -34,7 +34,7 @@ function preprocess!(sdp::SdrsppPulse)
     sdp.mean_costs = dijkstra(sdp.G, sdp.target_node, "mean")
 end
 
-function check_bounds(sdp::SdrsppPulse, current_node::Int, mean_path::Float64, variance_path::Float64, covariance_term_path::Float64, path::Vector{Int})
+function check_bounds(sdp::PaSdrspp, current_node::Int, mean_path::Float64, variance_path::Float64, covariance_term_path::Float64, path::Vector{Int})
     mean = mean_path + sdp.mean_costs[current_node]
     variance =  variance_path + covariance_term_path + sdp.variance_costs[current_node]
     dist = Normal(mean, √variance)
@@ -60,7 +60,7 @@ function check_bounds(sdp::SdrsppPulse, current_node::Int, mean_path::Float64, v
     return true
 end
 
-function pulse(sdp::SdrsppPulse, current_node::Int, cost::Float64, mean_path::Float64, variance_path::Float64, covariance_term_path::Float64, path::Vector{Int})
+function pulse(sdp::PaSdrspp, current_node::Int, cost::Float64, mean_path::Float64, variance_path::Float64, covariance_term_path::Float64, path::Vector{Int})
     if check_bounds(sdp, current_node, mean_path, variance_path, covariance_term_path, path)
         push!(path, current_node)
         link_dict = sdp.G.nodes[current_node].links 
@@ -80,7 +80,7 @@ function pulse(sdp::SdrsppPulse, current_node::Int, cost::Float64, mean_path::Fl
     end
 end
 
-function run_pulse(sdp::SdrsppPulse, optimal_path = Vector{Int}(), B = Inf)
+function run_pulse(sdp::PaSdrspp, optimal_path = Vector{Int}(), B = Inf)
     path = Vector{Int}()
     sdp.optimal_path = optimal_path
     sdp.B = B

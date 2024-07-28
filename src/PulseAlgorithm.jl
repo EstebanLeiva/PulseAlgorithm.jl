@@ -10,11 +10,11 @@ using Distributions
 include("graph.jl")
 include("data_loader.jl")
 include("dijkstra.jl")
-include("s_alpha_pulse.jl")
+include("pa_sarp.jl")
 include("erspa_star.jl")
-include("sd_rspp_pulse.jl")
+include("pa_sdrspp.jl")
 include("util.jl")
 
-export Graph, Node, Link, create_node!, add_link!, SarPulse, SdrsppPulse, ErspaStar
+export Graph, Node, Link, create_node!, add_link!, PaSarp, PaSdrspp, ErspaStar
 
 end
