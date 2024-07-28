@@ -28,7 +28,7 @@ using Distributions
     covariance_dict[(6, 4, 4, 5)] = 1.0
     covariance_dict[(6, 1, 1, 7)] = 1.0
 
-    pulse = PA.initialize(G, α, covariance_dict, "s", "e", T)
+    pulse = PA.initialize_PaSarp(G, α, covariance_dict, "s", "e", T)
     PA.preprocess!(pulse)
 
     @test pulse.minimum_costs == [3.0, 5.0, 4.0, 2.0, 1.0, 3.0, 0.0]

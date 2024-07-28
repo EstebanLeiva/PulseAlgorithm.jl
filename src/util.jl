@@ -1,3 +1,10 @@
+"""
+    get_path_distribution(graph::Graph, path::Vector{Int}, cov_dict::DefaultDict{Tuple{Int, Int, Int, Int}, Float64})
+
+Return the mean, variance and covariance term of a given path's travel time distribution.
+
+See also [`get_covariance_term`](@ref).
+"""
 function get_path_distribution(graph::Graph, path::Vector{Int}, cov_dict::DefaultDict{Tuple{Int, Int, Int, Int}, Float64})
     mean = 0.0
     variance = 0.0
@@ -12,6 +19,13 @@ function get_path_distribution(graph::Graph, path::Vector{Int}, cov_dict::Defaul
     return mean, variance, covariance_term
 end
 
+"""
+    modified_dfs(graph::Graph, start_link::Tuple{Int, Int}, max_depth::Int, depth::Int, visited_pairlinks::Dict{Tuple{Int, Int}, Int}, previous_node::Int)
+
+Return the links at a distance less or equal to max_depth from the starting link.
+
+See also [`get_covariance_dict`](@ref).
+"""
 function modified_dfs(graph::Graph, start_link::Tuple{Int, Int}, max_depth::Int, depth::Int, visited_pairlinks::Dict{Tuple{Int, Int}, Int}, previous_node::Int)
     if depth > max_depth
         return visited_pairlinks
@@ -31,6 +45,13 @@ function modified_dfs(graph::Graph, start_link::Tuple{Int, Int}, max_depth::Int,
     return visited_pairlinks
 end
 
+"""
+    get_covariance_dict(graph::Graph, ρ::Float64, max_depth::Int)
+
+Return the covariance dictionary of a graph following a spatial correlation structure of radius=max_depth.
+
+See also [`modified_dfs`](@ref).
+"""
 function get_covariance_dict(graph::Graph, ρ::Float64, max_depth::Int)
     covariance_dict = DefaultDict{Tuple{Int, Int, Int, Int}, Float64}(0.0) #default value of dic is 0.0
     links = get_links_info(graph)
@@ -48,6 +69,11 @@ function get_covariance_dict(graph::Graph, ρ::Float64, max_depth::Int)
     return covariance_dict
 end
 
+"""
+    get_higher_priority_paths(pq::PriorityQueue, element::Vector{Int})
+
+Return the elements with higher priority than the given element in a priority queue.
+"""
 function get_higher_priority_paths(pq::PriorityQueue, element::Vector{Int})
     temp_pq = copy(pq) 
     while !isempty(temp_pq)
@@ -59,7 +85,14 @@ function get_higher_priority_paths(pq::PriorityQueue, element::Vector{Int})
     return temp_pq
 end
 
-function calculate_covariance_term(covariance_dict::DefaultDict{Tuple{Int, Int, Int, Int}, Float64}, reachable_node::Int, path::Vector{Int})
+"""
+    get_covariance_term(covariance_dict::DefaultDict{Tuple{Int, Int, Int, Int}, Float64}, reachable_node::Int, path::Vector{Int})
+
+Return the covariance term of the given path's travel time distribution.
+
+See also [`get_path_distribution`](@ref), [`pulse`](@ref).
+"""
+function get_covariance_term(covariance_dict::DefaultDict{Tuple{Int, Int, Int, Int}, Float64}, reachable_node::Int, path::Vector{Int})
     n = length(path)
     if n > 1
         last_node = path[end]

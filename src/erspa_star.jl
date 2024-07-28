@@ -12,7 +12,7 @@ mutable struct ErspaStar
     SE::PriorityQueue{Vector{Int}, Float64}
 end
 
-function initialize(G::Graph, α::Float64, covariance_dict::DefaultDict{Tuple{Int, Int, Int, Int}, Float64}, node_coordinates::Vector{Tuple{Float64, Float64}}, source_node::String, target_node::String)
+function initialize_ErspaStar(G::Graph, α::Float64, covariance_dict::DefaultDict{Tuple{Int, Int, Int, Int}, Float64}, node_coordinates::Vector{Tuple{Float64, Float64}}, source_node::String, target_node::String)
     instance_info = Dict(
         "number_nondominanted_paths" => 0
         )

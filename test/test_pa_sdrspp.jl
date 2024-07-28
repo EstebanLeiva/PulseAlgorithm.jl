@@ -27,7 +27,7 @@ using Distributions
     covariance_dict[(6, 4, 4, 5)] = 1.0
     covariance_dict[(6, 1, 1, 7)] = 1.0
 
-    pulse = PA.initialize(G, α, covariance_dict, "s", "e")
+    pulse = PA.initialize_PaSdrspp(G, α, covariance_dict, "s", "e")
     PA.preprocess!(pulse)
 
     @test pulse.mean_costs == [2.0, 9.0, 1.0, 5.0, 2.0, 2.0, 0.0]

@@ -1,5 +1,10 @@
-### TAKEN FROM TrafficAssignment.jl PACKAGE ###
-mutable struct TA_Data
+# This file contains code that is a part of TrafficAssignment.jl. License is MIT 'Expat': https://github.com/chkwon/TrafficAssignment.jl?tab=License-1-ov-file
+"""
+    TAData(network_name::String, number_of_zones::Int, number_of_nodes::Int, first_thru_node::Int, number_of_links::Int, start_node::Array{Int,1}, end_node::Array{Int,1}, capacity::Array{Float64,1}, link_length::Array{Float64,1}, free_flow_time::Array{Float64,1}, B::Array{Float64,1}, power::Array{Float64,1}, speed_limit::Array{Float64,1}, toll::Array{Float64,1}, link_type::Array{Int64,1})
+
+Simple structure to store the traffic assignment data.
+"""
+mutable struct TAData
     network_name::String
 
     number_of_zones::Int
@@ -19,7 +24,14 @@ mutable struct TA_Data
     link_type::Array{Int64,1}
 end
 
-function load_ta_network(network_data_file,network_name)
+"""
+    load_ta(network_data_file::String, network_name::String)
+
+Load the traffic assignment network data.
+
+See also [`load_graph_from_ta`](@ref).
+"""
+function load_ta(network_data_file,network_name)
     search_sc(s,c) = something(findfirst(isequal(c), s), 0)
 
     @assert ispath(network_data_file)
@@ -91,7 +103,7 @@ function load_ta_network(network_data_file,network_name)
     end
 
     # Preparing data to return
-    ta_data = TA_Data(
+    ta_data = TAData(
         network_name,
         number_of_zones,
         number_of_nodes,
@@ -109,11 +121,16 @@ function load_ta_network(network_data_file,network_name)
         link_type)
 
     return ta_data
-
 end 
 
-### OUR FUNCTIONS ###
-function load_flowCost_from_ta(flow_file_dir:: String)
+"""
+    load_flowCost(flow_file_dir:: String)
+
+Load the flow cost data.
+
+See also [`load_graph_from_ta`](@ref).
+"""
+function load_flowCost(flow_file_dir:: String)
     cost_flow = Dict{Tuple{String, String}, Tuple{Float64, Float64}}()
     n = open(flow_file_dir, "r")
     while !eof(n)
@@ -131,7 +148,16 @@ function load_flowCost_from_ta(flow_file_dir:: String)
     return cost_flow
 end
 
-function calculate_avg_fft_coefficient(ta_data::TA_Data)
+"""
+    calculate_fft_coefficient(ta_data::TAData)
+
+Calculate the average free_flow_time/link_length coefficient.
+
+This is used to replace zero entries in the free_flow_time field.
+
+See also [`load_graph_from_ta`](@ref).
+"""
+function calculate_fft_coefficient(ta_data::TAData)
     sum = 0
     for i in 1:length(ta_data.free_flow_time)
         sum += ta_data.free_flow_time[i]/ta_data.link_length[i]
@@ -139,16 +165,25 @@ function calculate_avg_fft_coefficient(ta_data::TA_Data)
     return sum / length(ta_data.free_flow_time)
 end
 
+"""
+    load_graph_from_ta(tntp_file_dir::String, flow_file_dir:: String, network_name::String, CV::Float64, toll_factor::Float64, length_factor::Float64)
+
+Load a graph with the traffic assignment data.
+
+The cost, mean, and variance are calculated as explained in the Transportation Networks repository.
+
+See also [`load_ta`](@ref), [`load_flowCost`](@ref), [`calculate_fft_coefficient`](@ref).
+"""
 function load_graph_from_ta(tntp_file_dir::String, flow_file_dir:: String, network_name::String, CV::Float64, toll_factor::Float64, length_factor::Float64)
-    ta_data = load_ta_network(tntp_file_dir,network_name)
+    ta_data = load_ta(tntp_file_dir,network_name)
     new_graph = Graph(Dict{Int, Node}(), Dict{String, Int}())
 
     for i in 1:length(ta_data.start_node)
         find_or_add!(new_graph, string(ta_data.start_node[i]))
     end
 
-    cost_flow = load_flowCost_from_ta(flow_file_dir)
-    avg_fft_coefficient = calculate_avg_fft_coefficient(ta_data) 
+    cost_flow = load_flowCost(flow_file_dir)
+    avg_fft_coefficient = calculate_fft_coefficient(ta_data) 
     
     for i in 1:length(ta_data.start_node)
         start = string(ta_data.start_node[i])
@@ -160,7 +195,7 @@ function load_graph_from_ta(tntp_file_dir::String, flow_file_dir:: String, netwo
         end
         mean = fft * (1 + ta_data.B[i] * (cost_flow[(start,dst)][2] / ta_data.capacity[i]) ^ ta_data.power[i])
         variance = round(CV * abs(mean - fft), sigdigits = 2)
-        if variance < 0.01
+        if variance < 0.01 #Minimum variance
             variance = 0.01
         end
         cost = mean + toll_factor * ta_data.toll[i] + length_factor * ta_data.link_length[i]

@@ -1,3 +1,10 @@
+"""
+    dijkstra(graph::Graph, target_node::Int, path::String)
+
+Return a vector with the cost to reach the target node from all other nodes in the graph.
+
+Priority Queue implementation of Dijkstra's algorithm.
+"""
 function dijkstra(graph::Graph, target_node::Int, path::String)
     n = length(graph.nodes)
     cost = fill(Inf, n)
@@ -25,6 +32,13 @@ function dijkstra(graph::Graph, target_node::Int, path::String)
     return cost
 end
 
+"""
+    dijkstra_between_nodes(graph::Graph, start_node::Int, target_node::Int, type::String)
+
+Return the shortest path between two nodes in the graph.
+
+Priority Queue implementation of Dijkstra's algorithm between two nodes.
+"""
 function dijkstra_between_nodes(graph::Graph, start_node::Int, target_node::Int, type::String)
     dist = Vector{Float64}()
     prev = Vector{Int}()
