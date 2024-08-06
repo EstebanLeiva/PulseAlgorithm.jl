@@ -31,8 +31,8 @@ Load the traffic assignment network data.
 
 See also [`load_graph_from_ta`](@ref).
 """
-function load_ta(network_data_file,network_name)
-    search_sc(s,c) = something(findfirst(isequal(c), s), 0)
+function load_ta(network_data_file, network_name)
+    search_sc(s, c) = something(findfirst(isequal(c), s), 0)
 
     @assert ispath(network_data_file)
 
@@ -48,15 +48,15 @@ function load_ta(network_data_file,network_name)
 
     n = open(network_data_file, "r")
 
-    while (line=readline(n)) != ""
+    while (line = readline(n)) != ""
         if occursin("<NUMBER OF ZONES>", line)
-            number_of_zones = parse(Int, line[ search_sc(line, '>')+1 : end ] )
+            number_of_zones = parse(Int, line[search_sc(line, '>')+1:end])
         elseif occursin("<NUMBER OF NODES>", line)
-            number_of_nodes = parse(Int, line[ search_sc(line, '>')+1 : end ] )
+            number_of_nodes = parse(Int, line[search_sc(line, '>')+1:end])
         elseif occursin("<FIRST THRU NODE>", line)
-            first_thru_node = parse(Int, line[ search_sc(line, '>')+1 : end ] )
+            first_thru_node = parse(Int, line[search_sc(line, '>')+1:end])
         elseif occursin("<NUMBER OF LINKS>", line)
-            number_of_links = parse(Int, line[ search_sc(line, '>')+1 : end ] )
+            number_of_links = parse(Int, line[search_sc(line, '>')+1:end])
         elseif occursin("<END OF METADATA>", line)
             break
         end
@@ -105,7 +105,7 @@ function load_ta(network_data_file,network_name)
             idx = idx + 1
         end
     end
-
+    println("max_speed = $max_speed")
     # Preparing data to return
     ta_data = TAData(
         network_name,
@@ -125,7 +125,7 @@ function load_ta(network_data_file,network_name)
         link_type)
 
     return ta_data
-end 
+end
 
 """
     load_flowCost(flow_file_dir:: String)
@@ -134,8 +134,8 @@ Load the flow cost data.
 
 See also [`load_graph_from_ta`](@ref).
 """
-function load_flowCost(flow_file_dir:: String)
-    cost_flow = Dict{Tuple{String, String}, Tuple{Float64, Float64}}()
+function load_flowCost(flow_file_dir::String)
+    cost_flow = Dict{Tuple{String,String},Tuple{Float64,Float64}}()
     n = open(flow_file_dir, "r")
     while !eof(n)
         line = readline(n)
@@ -164,7 +164,7 @@ See also [`load_graph_from_ta`](@ref).
 function calculate_fft_coefficient(ta_data::TAData)
     sum = 0
     for i in 1:length(ta_data.free_flow_time)
-        sum += ta_data.free_flow_time[i]/ta_data.link_length[i]
+        sum += ta_data.free_flow_time[i] / ta_data.link_length[i]
     end
     return sum / length(ta_data.free_flow_time)
 end
@@ -178,17 +178,17 @@ The cost, mean, and variance are calculated as explained in the Transportation N
 
 See also [`load_ta`](@ref), [`load_flowCost`](@ref), [`calculate_fft_coefficient`](@ref).
 """
-function load_graph_from_ta(tntp_file_dir::String, flow_file_dir:: String, network_name::String, CV::Float64, toll_factor::Float64, length_factor::Float64)
-    ta_data = load_ta(tntp_file_dir,network_name)
-    new_graph = Graph(Dict{Int, Node}(), Dict{String, Int}())
+function load_graph_from_ta(tntp_file_dir::String, flow_file_dir::String, network_name::String, CV::Float64, toll_factor::Float64, length_factor::Float64)
+    ta_data = load_ta(tntp_file_dir, network_name)
+    new_graph = Graph(Dict{Int,Node}(), Dict{String,Int}())
 
     for i in 1:length(ta_data.start_node)
         find_or_add!(new_graph, string(ta_data.start_node[i]))
     end
 
     cost_flow = load_flowCost(flow_file_dir)
-    avg_fft_coefficient = calculate_fft_coefficient(ta_data) 
-    
+    avg_fft_coefficient = calculate_fft_coefficient(ta_data)
+
     for i in 1:length(ta_data.start_node)
         start = string(ta_data.start_node[i])
         dst = string(ta_data.end_node[i])
@@ -197,11 +197,8 @@ function load_graph_from_ta(tntp_file_dir::String, flow_file_dir:: String, netwo
         else
             fft = ta_data.free_flow_time[i]
         end
-        mean = fft * (1 + ta_data.B[i] * (cost_flow[(start,dst)][2] / ta_data.capacity[i]) ^ ta_data.power[i])
-        variance = round(CV * abs(mean - fft), sigdigits = 2)
-        if variance < 0.01 #Minimum variance
-            variance = 0.01
-        end
+        mean = fft * (1 + ta_data.B[i] * (cost_flow[(start, dst)][2] / ta_data.capacity[i])^ta_data.power[i])
+        variance = CV * abs(mean - fft)
         cost = mean + toll_factor * ta_data.toll[i] + length_factor * ta_data.link_length[i]
         add_link!(new_graph, start, dst, cost, mean, variance)
     end
