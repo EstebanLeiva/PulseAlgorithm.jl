@@ -25,7 +25,13 @@ function dijkstra(graph::Graph, target_node::Int, path::String)
             end
             if new_cost < cost[neighbor]
                 cost[neighbor] = new_cost
-                enqueue!(queue, neighbor, -new_cost)
+                if haskey(queue, neighbor)
+                    queue[neighbor] = new_cost
+                else
+                    enqueue!(queue, neighbor, new_cost)
+                end
+                #queue[neighbor] = queue[neighbor] - new_cost
+                #enqueue!(queue, neighbor, new_cost)
             end
         end
     end
@@ -70,7 +76,7 @@ function dijkstra_between_nodes(graph::Graph, start_node::Int, target_node::Int,
             if alt < dist[v]
                 dist[v] = alt
                 prev[v] = u
-                Q[v] = alt 
+                Q[v] = alt
             end
         end
     end

@@ -75,6 +75,7 @@ function load_ta(network_data_file,network_name)
     toll = zeros(number_of_links)
     link_type = Array{Int64}(undef, number_of_links)
 
+    max_speed = -Inf
     idx = 1
     while !eof(n)
         line = readline(n)
@@ -95,6 +96,9 @@ function load_ta(network_data_file,network_name)
             b[idx] = parse(Float64, numbers[6])
             power[idx] = parse(Float64, numbers[7])
             speed_limit[idx] = parse(Float64, numbers[8])
+            if speed_limit[idx] > max_speed
+                max_speed = speed_limit[idx]
+            end
             toll[idx] = parse(Float64, numbers[9])
             link_type[idx] = Int(round(parse(Float64, numbers[10])))
 

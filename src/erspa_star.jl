@@ -1,6 +1,7 @@
 mutable struct ErspaStar
     G::Graph
     α::Float64
+    max_speed::Float64
     covariance_dict::DefaultDict{Tuple{Int, Int, Int, Int}, Float64} 
     node_coordinates::Vector{Tuple{Float64, Float64}}
     node_distances::Vector{Float64}
@@ -12,25 +13,26 @@ mutable struct ErspaStar
     SE::PriorityQueue{Vector{Int}, Float64}
 end
 
-function initialize_ErspaStar(G::Graph, α::Float64, covariance_dict::DefaultDict{Tuple{Int, Int, Int, Int}, Float64}, node_coordinates::Vector{Tuple{Float64, Float64}}, source_node::String, target_node::String)
+function initialize_ErspaStar(G::Graph, α::Float64, covariance_dict::DefaultDict{Tuple{Int, Int, Int, Int}, Float64}, node_coordinates::Vector{Tuple{Float64, Float64}}, source_node::String, target_node::String, max_speed::Float64)
     instance_info = Dict(
         "number_nondominanted_paths" => 0
         )
     source_node = G.name_to_index[source_node]
     target_node = G.name_to_index[target_node]
-    return ErspaStar(G, α, covariance_dict, node_coordinates, Vector{Float64}(undef, length(G.nodes)), Vector{Int}(), source_node, target_node, instance_info, Dict{Tuple{Int, Int}, PriorityQueue{Vector{Int}, Float64}}(), PriorityQueue{Vector{Int}, Float64}())
+    return ErspaStar(G, α, max_speed, covariance_dict, node_coordinates, Vector{Float64}(undef, length(G.nodes)), Vector{Int}(), source_node, target_node, instance_info, Dict{Tuple{Int, Int}, PriorityQueue{Vector{Int}, Float64}}(), PriorityQueue{Vector{Int}, Float64}())
 end
 
 function preprocess!(erspa::ErspaStar)
     for (node, _ ) in erspa.G.nodes
-        erspa.node_distances[node] = sqrt((erspa.node_coordinates[node][1] - erspa.node_coordinates[erspa.target_node][1])^2 + (erspa.node_coordinates[node][2] - erspa.node_coordinates[erspa.target_node][2])^2)
+        erspa.node_distances[node] = sqrt((erspa.node_coordinates[node][1] - erspa.node_coordinates[erspa.target_node][1])^2 
+                                         + (erspa.node_coordinates[node][2] - erspa.node_coordinates[erspa.target_node][2])^2)
     end
 end
 
 function heuristic_function(erspa::ErspaStar, path::Vector{Int})
     mean, variance_term, covariance_term = get_path_distribution(erspa.G, path, erspa.covariance_dict)
     dist = Normal(mean, √(variance_term + covariance_term))
-    return quantile(dist, erspa.α) + erspa.node_distances[path[end]]
+    return quantile(dist, erspa.α) + (erspa.node_distances[path[end]]/1)/erspa.max_speed #5280 for CS
 end
 
 function check_mc_link(erspa::ErspaStar, link::Tuple{Int, Int} )
@@ -102,6 +104,7 @@ function check_mb_dominance(erspa::ErspaStar, path::Vector{Int})
 end
 
 function check_dominance(erspa::ErspaStar, path::Vector{Int})
+    # Step 1
      link = (path[end-1], path[end])
      if check_pc_link(erspa, link)
          β = erspa.α
@@ -116,7 +119,8 @@ function check_dominance(erspa::ErspaStar, path::Vector{Int})
      end
 
      P_d = Set{Vector{Int}}()
-     v = 1
+
+     # Step 2
      mean_u, variance_term_u, covariance_term_u = get_path_distribution(erspa.G, path, erspa.covariance_dict)
      dist_u = Normal(mean_u, √(variance_term_u + covariance_term_u))
      if !haskey(erspa.non_dominated_paths, link)
@@ -172,41 +176,36 @@ function path_selection(erspa::ErspaStar)
     if path[end] == erspa.target_node
         return false, path
     end
-    #println("Select: ", path)
     return true, path
 end
 
 function path_extension(erspa::ErspaStar, path::Vector{Int}, input_link::Tuple{Int, Int})    
+    if check_mc_link(erspa, input_link) 
+        MB = check_mb_dominance(erspa, path)
+    end
     for (reachable_node, link) in erspa.G.nodes[input_link[2]].links
         if check_mc_link(erspa, input_link) 
-            MB = check_mb_dominance(erspa, path)
-            #println("MB: ", MB)
             if MB && erspa.covariance_dict[input_link[1], input_link[2], input_link[2], reachable_node] >= 0
-                #println("Scan Next Movement")
                 continue
             end
-        else
-            new_path = copy(path)
-            push!(new_path, reachable_node)
-            f = heuristic_function(erspa, new_path)
-            dominated, P_d = check_dominance(erspa, new_path)
-            #println("Dominated: ", dominated)
-            if !dominated
-                enqueue!(erspa.SE, new_path, f)
-                for dominated_path in P_d
-                    delete!(erspa.SE, dominated_path)
-                end
+        end
+        new_path = copy(path)
+        push!(new_path, reachable_node)
+        f = heuristic_function(erspa, new_path)
+        dominated, P_d = check_dominance(erspa, new_path)
+        if !dominated
+            enqueue!(erspa.SE, new_path, f)
+            for dominated_path in P_d
+                delete!(erspa.SE, dominated_path)
             end
-        end 
+        end
     end
 end
 
 function run_erspa(erspa::ErspaStar)
     initialization!(erspa)
     while true
-        #println("SE: ", erspa.SE)
         ps = path_selection(erspa)
-        #println("Selected: ", ps)
         if ps[1] == false && !isempty(ps[2])
             erspa.optimal_path = ps[2]
             return erspa

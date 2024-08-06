@@ -42,7 +42,7 @@ using Distributions
     cov_dict[(6, 8, 8, 7)] = -1.0
 
 
-    erspa = PA.initialize_ErspaStar(G, 0.9, cov_dict, Vector{Tuple{Float64, Float64}}(), "1", "7")
+    erspa = PA.initialize_ErspaStar(G, 0.9, cov_dict, Vector{Tuple{Float64, Float64}}(), "1", "7", 1.0)
 
     @test PA.check_pc_link(erspa, (1, 2)) == true
     @test PA.check_nc_link(erspa, (1, 2)) == false
@@ -136,7 +136,7 @@ end
     push!(node_coordinates, (5.0, 2.0))
     push!(node_coordinates, (4.0, 1.0))
 
-    erspa = PA.initialize_ErspaStar(G, 0.9, cov_dict, node_coordinates, "1", "7")
+    erspa = PA.initialize_ErspaStar(G, 0.9, cov_dict, node_coordinates, "1", "7", 1.0)
     PA.preprocess!(erspa)
 
     # Test initialization
@@ -196,7 +196,7 @@ end
     push!(node_coordinates, (1.0, 3.0))
     push!(node_coordinates, (3.0, 3.0))
 
-    erspa = PA.initialize_ErspaStar(G, α, covariance_dict, node_coordinates, "s", "e")
+    erspa = PA.initialize_ErspaStar(G, α, covariance_dict, node_coordinates, "s", "e", 1.0)
     PA.preprocess!(erspa)
     sol_erspa = PA.run_erspa(erspa)
 
