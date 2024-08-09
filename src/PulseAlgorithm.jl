@@ -11,6 +11,6 @@ include("erspa_star.jl")
 include("pa_sdrspp.jl")
 include("util.jl")
 
-export Graph, Node, Link, create_node!, add_link!, PaSarp, PaSdrspp, ErspaStar
+export Graph, Node, Link, create_node!, add_link!, find_or_add!, PaSarp, PaSdrspp, ErspaStar
 
 end

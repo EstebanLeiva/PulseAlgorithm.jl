@@ -118,7 +118,7 @@ function check_dominance(sdp::PaSdrspp, current_node::Int, mean_path::Float64, v
             return false
         end
     end
-    if length(queue) < 100
+    if length(queue) < 10
         enqueue!(queue, (mean, variance), mean)
     end
     return true
