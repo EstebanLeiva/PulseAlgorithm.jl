@@ -136,7 +136,6 @@ Propagate the pulses through the graph while checking the pruning criteria and m
 """
 function pulse(sdp::PaSdrspp, current_node::Int, mean_path::Float64, variance_path::Float64, covariance_term_path::Float64, path::Vector{Int}, pulse_depth::Int)
     if check_bounds(sdp, current_node, mean_path, variance_path, covariance_term_path, path)
-        #if check_dominance(sdp, current_node, mean_path, variance_path, covariance_term_path, path)
             push!(path, current_node)
             link_dict = sdp.G.nodes[current_node].links 
             if path[end] ≠ sdp.target_node
@@ -159,7 +158,6 @@ function pulse(sdp::PaSdrspp, current_node::Int, mean_path::Float64, variance_pa
                     enqueue!(sdp.pulse_queue, path, quant)
                 end
             end
-        #end
     end
 end
 

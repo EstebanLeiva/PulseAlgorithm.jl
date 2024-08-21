@@ -77,6 +77,6 @@ PA.PaSdrspp
 PA.initialize_PaSdrspp
 PA.preprocess!(::PaSdrspp)
 PA.check_bounds(::PaSdrspp, ::Int, ::Float64, ::Float64, ::Float64, ::Vector{Int})
-PA.pulse(::PaSdrspp, ::Int, ::Float64, ::Float64, ::Float64, ::Float64, ::Vector{Int}, ::Int)
+PA.pulse(::PaSdrspp, ::Int, ::Float64, ::Float64, ::Float64, ::Vector{Int}, ::Int)
 PA.run_pulse(::PaSdrspp, ::Vector{Int}, B::Float64)
 ```
