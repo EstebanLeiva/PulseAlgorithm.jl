@@ -130,9 +130,9 @@ function check_dominance(sdp::PaSdrspp, current_node::Int, mean_path::Float64, v
 end
 
 """
-    pulse(sdp::PaSdrspp, current_node::Int, cost::Float64, mean_path::Float64, variance_path::Float64, covariance_term_path::Float64, path::Vector{Int})
+    pulse(sdp::PaSdrspp, current_node::Int, cost::Float64, mean_path::Float64, variance_path::Float64, covariance_term_path::Float64, path::Vector{Int}, pulse_depth::Int)
 
-Propagate the pulses through the graph while checking the pruning criteria.
+Propagate the pulses through the graph while checking the pruning criteria and maintaining the pulse queue.
 """
 function pulse(sdp::PaSdrspp, current_node::Int, mean_path::Float64, variance_path::Float64, covariance_term_path::Float64, path::Vector{Int}, pulse_depth::Int)
     if check_bounds(sdp, current_node, mean_path, variance_path, covariance_term_path, path)
