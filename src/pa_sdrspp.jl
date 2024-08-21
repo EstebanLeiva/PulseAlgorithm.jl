@@ -33,9 +33,9 @@ mutable struct PaSdrspp
 end
 
 """
-    initialize_PaSdrspp(G::Graph, α::Float64, covariance_dict::DefaultDict{Tuple{Int, Int, Int, Int}, Float64}, source_node::String, target_node::String)
+    initialize_PaSdrspp(G::Graph, α::Float64, covariance_dict::DefaultDict{Tuple{Int, Int, Int, Int}, Float64}, source_node::String, target_node::String, max_pulse_depth::Int)
 
-Initialize the PaSdrspp struct.
+Initialize the PaSdrspp struct with a pulse queue with length of exploration max_pulse_depth.
 """
 function initialize_PaSdrspp(G::Graph, α::Float64, covariance_dict::DefaultDict{Tuple{Int, Int, Int, Int}, Float64}, source_node::String, target_node::String, max_pulse_depth::Int)
     instance_info = Dict(
