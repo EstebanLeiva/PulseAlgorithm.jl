@@ -28,6 +28,8 @@ mutable struct PaSdrspp
     target_node::Int
     link_dominance::Dict{Tuple{Int, Int}, PriorityQueue{Tuple{Float64, Float64}, Float64}}
     instance_info::Dict{String, Any}
+    pulse_queue::PriorityQueue{Vector{Int}, Float64}
+    max_pulse_depth::Int
 end
 
 """
@@ -35,7 +37,7 @@ end
 
 Initialize the PaSdrspp struct.
 """
-function initialize_PaSdrspp(G::Graph, α::Float64, covariance_dict::DefaultDict{Tuple{Int, Int, Int, Int}, Float64}, source_node::String, target_node::String)
+function initialize_PaSdrspp(G::Graph, α::Float64, covariance_dict::DefaultDict{Tuple{Int, Int, Int, Int}, Float64}, source_node::String, target_node::String, max_pulse_depth::Int)
     instance_info = Dict(
         "pruned_by_bounds" => 0,
         "total_length_pruned_by_bounds" => 0,
@@ -46,7 +48,8 @@ function initialize_PaSdrspp(G::Graph, α::Float64, covariance_dict::DefaultDict
     source_node = G.name_to_index[source_node]
     target_node = G.name_to_index[target_node]
     return PaSdrspp(G, α, covariance_dict, Vector{Float64}(), Vector{Float64}(), Vector{Int}(), Inf64, source_node, target_node, 
-                    PriorityQueue{Tuple{Int, Int}, PriorityQueue{Tuple{Float64, Float64}, Float64}}(), instance_info)
+                    PriorityQueue{Tuple{Int, Int}, PriorityQueue{Tuple{Float64, Float64}, Float64}}(), instance_info,
+                    PriorityQueue{Vector{Int}, Float64}(), max_pulse_depth)
 end
 
 """
@@ -101,8 +104,8 @@ function check_dominance(sdp::PaSdrspp, current_node::Int, mean_path::Float64, v
     if length(path) == 0
         return true
     end
-    mean = mean_path + sdp.mean_costs[current_node]
-    variance =  variance_path + covariance_term_path + sdp.variance_costs[current_node]
+    mean = mean_path
+    variance =  variance_path + covariance_term_path
     if (path[end], current_node) ∉ keys(sdp.link_dominance)
         sdp.link_dominance[(path[end], current_node)] = PriorityQueue{Tuple{Float64, Float64}, Float64}()
         enqueue!(sdp.link_dominance[(path[end], current_node)], (mean, variance), mean)
@@ -112,7 +115,9 @@ function check_dominance(sdp::PaSdrspp, current_node::Int, mean_path::Float64, v
     iter_queue = copy(queue)
     while !isempty(iter_queue)
         (mean_iter, variance_iter) = dequeue!(iter_queue)
-        if mean_iter <= mean && variance_iter <= variance
+        if mean_iter < mean && variance_iter < variance
+            println(mean_iter, variance_iter)
+            println(mean, variance)
             sdp.instance_info["pruned_by_dominance"] += 1
             sdp.instance_info["total_length_pruned_by_dominance"] += length(path)
             return false
@@ -129,22 +134,29 @@ end
 
 Propagate the pulses through the graph while checking the pruning criteria.
 """
-function pulse(sdp::PaSdrspp, current_node::Int, cost::Float64, mean_path::Float64, variance_path::Float64, covariance_term_path::Float64, path::Vector{Int})
+function pulse(sdp::PaSdrspp, current_node::Int, mean_path::Float64, variance_path::Float64, covariance_term_path::Float64, path::Vector{Int}, pulse_depth::Int)
     if check_bounds(sdp, current_node, mean_path, variance_path, covariance_term_path, path)
         #if check_dominance(sdp, current_node, mean_path, variance_path, covariance_term_path, path)
             push!(path, current_node)
             link_dict = sdp.G.nodes[current_node].links 
             if path[end] ≠ sdp.target_node
-                ordered_reachable_nodes = sort(collect(keys(link_dict)), by=x->sdp.mean_costs[x])
-                for reachable_node in ordered_reachable_nodes
-                    if reachable_node ∉ path
-                        inside_path = copy(path)
-                        cost_copy = cost + link_dict[reachable_node].cost
-                        mean_path_copy = mean_path + link_dict[reachable_node].mean
-                        variance_path_copy = variance_path + link_dict[reachable_node].variance
-                        covariance_term_path_copy = covariance_term_path + get_covariance_term(sdp.covariance_dict, reachable_node, inside_path)
-                        pulse(sdp, reachable_node, cost_copy, mean_path_copy, variance_path_copy, covariance_term_path_copy, inside_path)
+                if pulse_depth < sdp.max_pulse_depth
+                    ordered_reachable_nodes = sort(collect(keys(link_dict)), by=x->sdp.mean_costs[x])
+                    for reachable_node in ordered_reachable_nodes
+                        if reachable_node ∉ path
+                            inside_path = copy(path)
+                            mean_path_copy = mean_path + link_dict[reachable_node].mean
+                            variance_path_copy = variance_path + link_dict[reachable_node].variance
+                            covariance_term_path_copy = covariance_term_path + get_covariance_term(sdp.covariance_dict, reachable_node, inside_path)
+                            pulse(sdp, reachable_node, mean_path_copy, variance_path_copy, covariance_term_path_copy, inside_path, pulse_depth + 1)
+                        end
                     end
+                else
+                    best_mean = mean_path + sdp.mean_costs[path[end]]
+                    best_variance =  variance_path + covariance_term_path + sdp.variance_costs[path[end]]
+                    dist = Normal(best_mean, √best_variance)
+                    quant = quantile(dist, sdp.α)
+                    enqueue!(sdp.pulse_queue, path, quant)
                 end
             end
         #end
@@ -167,6 +179,22 @@ function run_pulse(sdp::PaSdrspp, optimal_path = Vector{Int}(), B = Inf)
     path = Vector{Int}()
     sdp.optimal_path = optimal_path
     sdp.B = B
-    pulse(sdp, sdp.source_node, 0.0, 0.0, 0.0, 0.0, path)
+    pulse(sdp, sdp.source_node, 0.0, 0.0, 0.0, path, 0)
+    while !isempty(sdp.pulse_queue)
+        path_to_explore = dequeue!(sdp.pulse_queue)
+        mean_path_explore, variance_path_explore, covariance_term_path_explore = get_path_distribution(sdp.G, path_to_explore, sdp.covariance_dict)
+        link_dict = sdp.G.nodes[path_to_explore[end]].links 
+        
+        ordered_reachable_nodes = sort(collect(keys(link_dict)), by=x->sdp.mean_costs[x])
+        for reachable_node in ordered_reachable_nodes
+            if reachable_node ∉ path_to_explore
+                inside_path = copy(path_to_explore)
+                mean_path_copy = mean_path_explore + link_dict[reachable_node].mean
+                variance_path_copy = variance_path_explore + link_dict[reachable_node].variance
+                covariance_term_path_copy = covariance_term_path_explore + get_covariance_term(sdp.covariance_dict, reachable_node, inside_path)
+                pulse(sdp, reachable_node, mean_path_copy, variance_path_copy, covariance_term_path_copy, inside_path, 0)
+            end
+        end
+    end
     return sdp.optimal_path, sdp.B, sdp
 end

@@ -105,7 +105,6 @@ function load_ta(network_data_file, network_name)
             idx = idx + 1
         end
     end
-    println("max_speed = $max_speed")
     # Preparing data to return
     ta_data = TAData(
         network_name,
