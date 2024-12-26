@@ -136,28 +136,28 @@ Propagate the pulses through the graph while checking the pruning criteria and m
 """
 function pulse(sdp::PaSdrspp, current_node::Int, mean_path::Float64, variance_path::Float64, covariance_term_path::Float64, path::Vector{Int}, pulse_depth::Int)
     if check_bounds(sdp, current_node, mean_path, variance_path, covariance_term_path, path)
-            push!(path, current_node)
-            link_dict = sdp.G.nodes[current_node].links 
-            if path[end] ≠ sdp.target_node
-                if pulse_depth < sdp.max_pulse_depth
-                    ordered_reachable_nodes = sort(collect(keys(link_dict)), by=x->sdp.mean_costs[x])
-                    for reachable_node in ordered_reachable_nodes
-                        if reachable_node ∉ path
-                            inside_path = copy(path)
-                            mean_path_copy = mean_path + link_dict[reachable_node].mean
-                            variance_path_copy = variance_path + link_dict[reachable_node].variance
-                            covariance_term_path_copy = covariance_term_path + get_covariance_term(sdp.covariance_dict, reachable_node, inside_path)
-                            pulse(sdp, reachable_node, mean_path_copy, variance_path_copy, covariance_term_path_copy, inside_path, pulse_depth + 1)
-                        end
+        push!(path, current_node)
+        link_dict = sdp.G.nodes[current_node].links 
+        if path[end] ≠ sdp.target_node
+            if pulse_depth < sdp.max_pulse_depth
+                ordered_reachable_nodes = sort(collect(keys(link_dict)), by=x->sdp.mean_costs[x])
+                for reachable_node in ordered_reachable_nodes
+                    if reachable_node ∉ path
+                        inside_path = copy(path)
+                        mean_path_copy = mean_path + link_dict[reachable_node].mean
+                        variance_path_copy = variance_path + link_dict[reachable_node].variance
+                        covariance_term_path_copy = covariance_term_path + get_covariance_term(sdp.covariance_dict, reachable_node, inside_path)
+                        pulse(sdp, reachable_node, mean_path_copy, variance_path_copy, covariance_term_path_copy, inside_path, pulse_depth + 1)
                     end
-                else
-                    best_mean = mean_path + sdp.mean_costs[path[end]]
-                    best_variance =  variance_path + covariance_term_path + sdp.variance_costs[path[end]]
-                    dist = Normal(best_mean, √best_variance)
-                    quant = quantile(dist, sdp.α)
-                    enqueue!(sdp.pulse_queue, path, quant)
                 end
+            else
+                best_mean = mean_path + sdp.mean_costs[path[end]]
+                best_variance =  variance_path + covariance_term_path + sdp.variance_costs[path[end]]
+                dist = Normal(best_mean, √best_variance)
+                quant = quantile(dist, sdp.α)
+                enqueue!(sdp.pulse_queue, path, quant)
             end
+        end
     end
 end
 

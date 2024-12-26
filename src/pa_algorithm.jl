@@ -1,29 +1,27 @@
-struct Parameters
-    bounds_pruning::Bool,
-    feasibility_pruning::Bool,
-    dominance_pruning::Bool,
+struct Parameters{F<:Function}
     max_pulse_depth::Int,
     path_completion::Bool,
-    exploration_order::String, 
+    exploration_order::F, 
     prep_deterministic_weights::Vector{String},
     prep_random_weights::Dict{String, Vector{String}}
 end
 
-function Parameters(bounds_pruning::Bool, 
-                    feasibility_pruning::Bool, 
-                    dominance_pruning::Bool, 
-                    max_pulse_depth::Int, 
+function Parameters(max_pulse_depth::Int, 
                     path_completion::Bool, 
-                    exploration_order::String, 
+                    exploration_order::F, 
                     prep_deterministic_weights::Vector{String}, 
-                    prep_random_weights::Dict{String, Vector{String}})
-    if exploration_order ∉ [] #TODO: Add the possible values
-        error("The exploration order is not valid. Choose one of the following: ")
-    end
-    return Parameters(bounds_pruning, feasibility_pruning, dominance_pruning, max_pulse_depth, path_completion, exploration_order, prep_deterministic_weights, prep_random_weights)
+                    prep_random_weights::Dict{String, Vector{String}}) where {F<:Function}
+    return Parameters(bounds_pruning, 
+                      feasibility_pruning, 
+                      dominance_pruning, 
+                      max_pulse_depth, 
+                      path_completion, 
+                      exploration_order, 
+                      prep_deterministic_weights, 
+                      prep_random_weights)
 end
 
-function Parameters(json_dir)
+function Parameters(json_dir::String)
     #TODO: load parameters from json 
     return 1
 end
@@ -69,7 +67,7 @@ end
 
 function preprocess!(pulse_alg::Pulse)
     for cost in keys(pulse_alg.parameters.prep_deterministic_weights)
-        pulse_alg.prep_deterministic_costs[cost] = dijkstra(pulse_alg.problem.graph, pulse_alg.problem.target_node, cost) #TODO: connect dijkstra
+        pulse_alg.prep_deterministic_costs[cost] = dijkstra(pulse_alg.problem.graph, pulse_alg.problem.target_node, cost) 
         if pulse_alg.prep_deterministic_costs[cost][pulse_alg.problem.source_node] == Inf
             error("The source node is not reachable from the target node")
         end
@@ -78,7 +76,7 @@ function preprocess!(pulse_alg::Pulse)
     for random_variable in keys(pulse_alg.parameters.prep_random_weights)
         for cost in pulse_alg.parameters.prep_random_weights[random_variable]
             pulse_alg.prep_random_costs[random_variable] = Dict{String, Vector{Float64}}()
-            pulse_alg.prep_random_costs[random_variable][cost] = dijkstra(pulse_alg.problem.graph, pulse_alg.problem.target_node, cost) #TODO: connect dijkstra
+            pulse_alg.prep_random_costs[random_variable][cost] = dijkstra(pulse_alg.problem.graph, pulse_alg.problem.target_node, random_variable, cost)
             if pulse_alg.prep_random_costs[random_variable][cost][pulse_alg.problem.source_node] == Inf
                 error("The source node is not reachable from the target node")
             end
@@ -88,14 +86,14 @@ function preprocess!(pulse_alg::Pulse)
 end
 
 function propagate_pulse(pulse_alg::Pulse, 
-               current_node::Int,
-               deterministic_info::Dict{String, Float64},
-               random_info::Dict{String, Dict{String, Float64}},
-               current_path::Vector{Int}, 
-               current_depth::Int,
-               pruning_functions::Vector{Function}, 
-               info_update::F1, 
-               pulse_score::F2) where {F1<:Function, F2<:Function}
+                         current_node::Int,
+                         deterministic_info::Dict{String, Float64},
+                         random_info::Dict{String, Dict{String, Float64}},
+                         current_path::Vector{Int}, 
+                         current_depth::Int,
+                         pruning_functions::VF, 
+                         info_update::F1, 
+                         pulse_score::F2) where {VF<:Vector{Function}, F1<:Function, F2<:Function}
     pass = true
     for pruning_function in pruning_functions
         if pruning_function(pulse_alg, current_node, deterministic_info, random_info, current_path)
@@ -129,15 +127,25 @@ end
 
 function run_pulse(pulse_alg::Pulse,
                    info_update::F1,
+                   pruning_functions::VF,
                    pulse_score::F2,
                    init_optimal_path::Vector{Int} = Vector{Int}(), 
-                   init_objective::Float64 = Inf) where {F1<:Function, F2<:Function}
+                   init_objective::Float64 = Inf) where {F1<:Function, VF<:Vector{Function}, F2<:Function}
     path = Vector{Int}()
     pulse_alg.current_optimal_path = init_optimal_path
     pulse_alg.current_objective = init_objective
     deterministic_info, random_info = init_info(pulse_alg.problem.graph)
 
-    pulse(pulse_alg, pulse_alg.source_node, path, path_information)
+    propagate_pulse(pulse_alg, 
+                    pulse_alg.problem.source_node, 
+                    deterministic_info, 
+                    random_info, 
+                    path, 
+                    0, 
+                    pruning_functions, 
+                    info_update, 
+                    pulse_score)
+                    
     while !isempty(pulse_alg.pulse_queue)
         path_to_explore, deterministic_info, random_info = dequeue!(pulse_alg.pulse_queue)
         link_dict = pulse_alg.problem.graph.nodes[path_to_explore[end]].links
@@ -149,35 +157,23 @@ function run_pulse(pulse_alg::Pulse,
                                                                       reachable_node, 
                                                                       deterministic_info, 
                                                                       random_info) #TODO: check if this is a copy of the info
-                pulse(pulse_alg, reachable_node, new_deterministic_info, new_random_info, inside_path, 0)
+                propagate_pulse(pulse_alg, 
+                                reachable_node, 
+                                new_deterministic_info, 
+                                new_random_info, 
+                                inside_path, 
+                                length(inside_path), 
+                                pruning_functions, 
+                                info_update, 
+                                pulse_score)
             end
         end
     end
-
-
-
-
-    while !isempty(sdp.pulse_queue)
-        path_to_explore = dequeue!(sdp.pulse_queue)
-        mean_path_explore, variance_path_explore, covariance_term_path_explore = get_path_distribution(sdp.G, path_to_explore, sdp.covariance_dict)
-        link_dict = sdp.G.nodes[path_to_explore[end]].links 
-        
-        ordered_reachable_nodes = sort(collect(keys(link_dict)), by=x->sdp.mean_costs[x])
-        for reachable_node in ordered_reachable_nodes
-            if reachable_node ∉ path_to_explore
-                inside_path = copy(path_to_explore)
-                mean_path_copy = mean_path_explore + link_dict[reachable_node].mean
-                variance_path_copy = variance_path_explore + link_dict[reachable_node].variance
-                covariance_term_path_copy = covariance_term_path_explore + get_covariance_term(sdp.covariance_dict, reachable_node, inside_path)
-                pulse(sdp, reachable_node, mean_path_copy, variance_path_copy, covariance_term_path_copy, inside_path, 0)
-            end
-        end
-    end
-    return sdp.optimal_path, sdp.B, sdp
 end
 
-function order_nodes(link_dict, exploration_order)
-    #TODO: finish
+function order_nodes(pulse_alg::Pulse, link_dict::Dict{Int, Link}, exploration_order::F) where {F<:Function}
+    ordered_nodes = sort(collect(keys(link_dict)), by=x->exploration_order(pulse_alg, x)) 
+    return ordered_nodes
 end
 
 function init_info(graph)
