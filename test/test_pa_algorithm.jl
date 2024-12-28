@@ -322,12 +322,12 @@ end
     @test quant - 3.282 <= 1e-3
 end
 
-#TODO: add dominance strategy test
+#TODO: add specific dominance strategy test
 @testset "Dominance Test" begin
 
 end
 
-#TODO: add path completion test
+#TODO: add specific path completion test
 @testset "Path Completion Test" begin
 
 end
