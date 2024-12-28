@@ -20,14 +20,14 @@ mutable struct Pulse
     const parameters::Parameters
     # Preprocessing information
     const prep_deterministic_costs::Dict{String, Vector{Float64}}
-    const prep_random_costs::Dict{String, Dict{String, Vector{Float64}}}
+    const prep_random_costs::Dict{String, Dict{String, Vector{Float64}}} #TODO: define a struct for preprocessing information
     # Optimal path information
     optimal_path::Vector{Int}
     optimal_objective::Float64
     # Pruning strategies
     current_optimal_path::Vector{Int}
     current_optimal_objective::Float64
-    const dominance::Dict{Tuple{Int, Int}, PriorityQueue{Tuple{Float64, Float64}, Float64}}
+    const dominance::Dict{Tuple{Int, Int}, PriorityQueue{Tuple{Dict{String, Float64}, Dict{String, Dict{String, Float64}}}, Float64}} #TODO: create a struct for path information
     # Acceleration strategies
     const pulse_queue::PriorityQueue{Tuple{Vector{Int}, Dict{String, Float64}, Dict{String, Dict{String, Float64}}}, Float64}
     # Instance information
@@ -85,7 +85,7 @@ function propagate_pulse!(pulse_alg::Pulse,
                          pulse_score::Function)
     pass = true
     for pruning_function in pruning_functions
-        if pruning_function(pulse_alg, current_node, current_path, deterministic_info, random_info)
+        if pruning_function(pulse_alg, current_node, current_path, deterministic_info, random_info) #TODO: the pruning function should have a parameter if its "bound" type to update the curren_optimal_objective
             pass = false
             break
         end
@@ -147,20 +147,22 @@ function run_pulse!(pulse_alg::Pulse,
     while !isempty(pulse_alg.pulse_queue)
         path_to_explore, deterministic_info, random_info = dequeue!(pulse_alg.pulse_queue)
         link_dict = pulse_alg.problem.graph.nodes[path_to_explore[end]].links
-        ordered_reachable_nodes = order_nodes(link_dict, pulse_alg.parameters.exploration_order)
+        ordered_reachable_nodes = order_nodes(pulse_alg, link_dict, pulse_alg.parameters.exploration_order)
         for reachable_node in ordered_reachable_nodes
             if reachable_node ∉ path_to_explore
-                inside_path = copy(path_to_explore)
-                new_deterministic_info, new_random_info = info_update(path_to_explore[end], 
+                new_path = copy(path_to_explore)
+                new_deterministic_info, new_random_info = info_update(pulse_alg.problem.graph,
+                                                                      new_path[end], 
                                                                       reachable_node, 
+                                                                      new_path,
                                                                       deterministic_info, 
-                                                                      random_info) #TODO: check if this is a copy of the info
+                                                                      random_info)  #TODO: check if this is a copy of the info
                 propagate_pulse!(pulse_alg, 
                                 reachable_node, 
                                 new_deterministic_info, 
                                 new_random_info, 
-                                inside_path, 
-                                length(inside_path), 
+                                new_path, 
+                                0, 
                                 pruning_functions, 
                                 info_update, 
                                 pulse_score)
