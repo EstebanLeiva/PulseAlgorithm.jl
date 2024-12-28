@@ -1,5 +1,5 @@
 using Distributions
-using PulseAlgorithm: Graph, Parameters, Problem, Pulse, preprocess!, run_pulse!, DefaultDict, PriorityQueue, enqueue!, dequeue!
+using PulseAlgorithm: Graph, Parameters, Problem, Pulse, preprocess!, run_pulse!, DefaultDict, PriorityQueue, enqueue!, dequeue!, PathInformation
 
 function get_path_distribution(graph::Graph, path::Vector{Int}, cov_dict::DefaultDict{Tuple{Int, Int, Int, Int}, Float64})
     mean = 0.0
@@ -53,8 +53,8 @@ end
                                deterministic_info::Dict{String, Float64},
                                random_info::Dict{String, Dict{String, Float64}})
         pass = false
-        mean = random_info["time"]["mean"] + pulse_alg.prep_random_costs["time"]["mean"][current_node]
-        variance = random_info["time"]["variance"] + pulse_alg.prep_random_costs["time"]["variance"][current_node]
+        mean = random_info["time"]["mean"] + pulse_alg.preprocessing.random["time"]["mean"][current_node]
+        variance = random_info["time"]["variance"] + pulse_alg.preprocessing.random["time"]["variance"][current_node]
         dist = Normal(mean, √variance)
         prob = cdf(dist, pulse_alg.problem.constants["T_max"])
         if pulse_alg.problem.constants["T_max"] >= mean && prob < pulse_alg.problem.constants["alpha"]
@@ -71,7 +71,7 @@ end
                           deterministic_info::Dict{String, Float64},
                           random_info::Dict{String, Dict{String, Float64}})
         pass = true
-        if deterministic_info["cost"] + pulse_alg.prep_deterministic_costs["cost"][current_node] <= pulse_alg.current_optimal_objective
+        if deterministic_info["cost"] + pulse_alg.preprocessing.deterministic["cost"][current_node] <= pulse_alg.current_optimal_objective
             if current_node == pulse_alg.problem.target_node
                 pulse_alg.current_optimal_objective = deterministic_info["cost"]
                 new_path = copy(current_path)
@@ -84,14 +84,14 @@ end
     end
 
     function exploration_order(pulse_alg::Pulse, node::Int)
-        return pulse_alg.prep_deterministic_costs["cost"][node]
+        return pulse_alg.preprocessing.deterministic["cost"][node]
     end
     
     function pulse_score(pulse_alg::Pulse, 
                          current_path::Vector{Int},
                          deterministic_info::Dict{String, Float64},
                          random_info::Dict{String, Dict{String, Float64}})
-        return pulse_alg.prep_deterministic_costs["cost"][current_path[end]]
+        return pulse_alg.preprocessing.deterministic["cost"][current_path[end]]
     end
         
     pruning_functions = [prune_bounds, prune_feasibility]
@@ -141,9 +141,9 @@ end
 
     preprocess!(pulse)
 
-    @test pulse.prep_deterministic_costs["cost"] == [3.0, 5.0, 4.0, 2.0, 1.0, 3.0, 0.0]
-    @test pulse.prep_random_costs["time"]["mean"] == [2.0, 9.0, 1.0, 5.0, 2.0, 2.0, 0.0]
-    @test pulse.prep_random_costs["time"]["variance"] == [0.5, 1.0, 0.5, 5.0, 2.0, 1.0, 0.0]
+    @test pulse.preprocessing.deterministic["cost"] == [3.0, 5.0, 4.0, 2.0, 1.0, 3.0, 0.0]
+    @test pulse.preprocessing.random["time"]["mean"] == [2.0, 9.0, 1.0, 5.0, 2.0, 2.0, 0.0]
+    @test pulse.preprocessing.random["time"]["variance"] == [0.5, 1.0, 0.5, 5.0, 2.0, 1.0, 0.0]
 
     run_pulse!(pulse, 
                info_update, 
@@ -163,14 +163,14 @@ end
 
 @testset "SD-RSPP Test" begin
     function exploration_order(pulse_alg::Pulse, node::Int)
-        return pulse_alg.prep_random_costs["time"]["mean"][node]
+        return pulse_alg.preprocessing.random["time"]["mean"][node]
     end
 
     function pulse_score(pulse_alg::Pulse, 
                          current_path::Vector{Int},
                          deterministic_info::Dict{String, Float64},
                          random_info::Dict{String, Dict{String, Float64}})
-        return pulse_alg.prep_random_costs["time"]["mean"][current_path[end]]
+        return pulse_alg.preprocessing.random["time"]["mean"][current_path[end]]
     end
 
     function info_update(graph::Graph,
@@ -207,8 +207,8 @@ end
                           current_path::Vector{Int},
                           deterministic_info::Dict{String, Float64},
                           random_info::Dict{String, Dict{String, Float64}})
-        mean = random_info["time"]["mean"] + pulse_alg.prep_random_costs["time"]["mean"][current_node]
-        variance = random_info["time"]["variance"] + pulse_alg.prep_random_costs["time"]["variance"][current_node]
+        mean = random_info["time"]["mean"] + pulse_alg.preprocessing.random["time"]["mean"][current_node]
+        variance = random_info["time"]["variance"] + pulse_alg.preprocessing.random["time"]["variance"][current_node]
         dist = Normal(mean, √variance)
         prob = cdf(dist, pulse_alg.current_optimal_objective)
         if mean <= pulse_alg.current_optimal_objective && prob < pulse_alg.problem.constants["alpha"]
@@ -237,21 +237,22 @@ end
         end
         mean = random_info["time"]["mean"]
         variance = random_info["time"]["variance"] + random_info["time"]["covariance"]
+        path_info = PathInformation(current_path, deterministic_info, random_info)
         if (current_path[end], current_node) ∉ keys(pulse_alg.dominance)
             pulse_alg.dominance[(current_path[end], current_node)] = PriorityQueue{Tuple{Dict{String, Float64}, Dict{String, Dict{String, Float64}}}, Float64}()
-            enqueue!(pulse_alg.dominance[(current_path[end], current_node)], (deterministic_info, random_info), random_info["time"]["mean"])
+            enqueue!(pulse_alg.dominance[(current_path[end], current_node)], path_info, random_info["time"]["mean"])
             return false
         end
         queue = pulse_alg.dominance[(current_path[end], current_node)]
         iter_queue = copy(queue)
         while !isempty(iter_queue)
-            (q_deterministic_info, q_random_info) = dequeue!(iter_queue)
-            if q_random_info["time"]["mean"] < mean && q_random_info["time"]["variance"] < variance
+            q_path_info = dequeue!(iter_queue)
+            if q_path_info.random["time"]["mean"] < mean && q_path_info.random["time"]["variance"] < variance
                 return true
             end
         end
         if length(queue) < 10 #TODO: this number should be a parameter
-            enqueue!(queue, (deterministic_info, random_info), random_info["time"]["mean"])
+            enqueue!(queue, path_info, random_info["time"]["mean"])
         end
         return false
     end
@@ -303,13 +304,13 @@ end
 
     preprocess!(pulse)
 
-    @test pulse.prep_random_costs["time"]["mean"] == [2.0, 9.0, 1.0, 5.0, 2.0, 2.0, 0.0]
-    @test pulse.prep_random_costs["time"]["variance"] == [0.5, 1.0, 0.5, 5.0, 2.0, 1.0, 0.0]
+    @test pulse.preprocessing.random["time"]["mean"] == [2.0, 9.0, 1.0, 5.0, 2.0, 2.0, 0.0]
+    @test pulse.preprocessing.random["time"]["variance"] == [0.5, 1.0, 0.5, 5.0, 2.0, 1.0, 0.0]
 
     run_pulse!(pulse, 
-    info_update, 
-    pruning_functions, 
-    pulse_score)
+               info_update, 
+               pruning_functions, 
+               pulse_score)
 
     optimal_path = pulse.optimal_path
     optimal_quant = pulse.optimal_objective
