@@ -26,7 +26,7 @@ Simple graph structure.
 struct Graph
     nodes::Dict{Int, Node}
     name_to_index::Dict{String, Int}
-    covariance::Dict{Tuple{String, Tuple{Int, Int, Int, Int}}, Float64}
+    covariance::Dict{String, DefaultDict{Tuple{Int, Int, Int, Int}, Float64}}
 end
 
 """
@@ -131,7 +131,7 @@ end
 function get_link_keys(graph::Graph)
     for (u, node) in graph.nodes
         if !isempty(node.links)
-            link = node.links[keys(node.links)[1]]
+            link = node.links[first(keys(node.links))]
             det_keys = collect(keys(link.deterministic))
             random_variables = collect(keys(link.random))
             rand_keys = Dict{String, Vector{String}}()
