@@ -36,24 +36,17 @@ mutable struct Pulse
     # Pulse Parameters
     const parameters::Parameters
     # Preprocessing information
-    ##const prep_deterministic_costs::Dict{String, Vector{Float64}}
-    ##const prep_random_costs::Dict{String, Dict{String, Vector{Float64}}} #TODO: define a struct for preprocessing information
     const preprocessing::Preprocessing
-    
-    ##const dominance::Dict{Tuple{Int, Int}, PriorityQueue{Tuple{Dict{String, Float64}, Dict{String, Dict{String, Float64}}}, Float64}} #TODO: create a struct for path information
+    # Dominance strategy
     const dominance::Dict{Tuple{Int, Int}, PriorityQueue{PathInformation, Float64}}
-
     # Acceleration strategies
-    ##const pulse_queue::PriorityQueue{Tuple{Vector{Int}, Dict{String, Float64}, Dict{String, Dict{String, Float64}}}, Float64}
     const pulse_queue::PriorityQueue{PathInformation, Float64}
-
     # Optimal path information
     optimal_path::Vector{Int}
     optimal_objective::Float64
     # Pruning strategies
     current_optimal_path::Vector{Int}
     current_optimal_objective::Float64
-
     # Instance information
     const instance_info::Dict{String, Int} #TODO: Add key initialization to 0
 end
@@ -121,7 +114,7 @@ function propagate_pulse!(pulse_alg::Pulse,
     if pass
         push!(current_path_info.path, current_node)
         link_dict = pulse_alg.problem.graph.nodes[current_node].links
-        if current_path_info.path[end] ≠ pulse_alg.problem.target_node
+        if current_path_info.path[end] ≠ pulse_alg.problem.target_node #TODO: the current_optimal_objective should be updated outside the bound function and done here
             if current_depth < pulse_alg.parameters.max_pulse_depth
                 ordered_reachable_nodes = order_nodes(pulse_alg, link_dict, pulse_alg.parameters.exploration_order)
                 for reachable_node in ordered_reachable_nodes
@@ -131,8 +124,8 @@ function propagate_pulse!(pulse_alg::Pulse,
                                                                               current_node, 
                                                                               reachable_node, 
                                                                               new_path,
-                                                                              current_path_info.deterministic, 
-                                                                              current_path_info.random) #TODO: check if this is a copy of the info
+                                                                              copy(current_path_info.deterministic), 
+                                                                              copy(current_path_info.random))
                         new_path_info = PathInformation(new_path, new_deterministic_info, new_random_info)
                         propagate_pulse!(pulse_alg, 
                                         reachable_node, 
@@ -181,7 +174,7 @@ function run_pulse!(pulse_alg::Pulse,
                                             reachable_node, 
                                             new_path,
                                             explore_path_info.deterministic, 
-                                            explore_path_info.random)  #TODO: check if this is a copy of the info
+                                            explore_path_info.random)  #TODO: check if the path_info has to be copied
                 propagate_pulse!(pulse_alg, 
                                 reachable_node, 
                                 new_path_info,

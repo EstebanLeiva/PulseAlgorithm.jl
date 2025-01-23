@@ -23,8 +23,6 @@ end
                          path::Vector{Int},
                          deterministic_info::Dict{String, Float64}, 
                          random_info::Dict{String, Dict{String, Float64}})
-        deterministic_info = copy(deterministic_info) #TODO: check if this copying can be done automatically in some way
-        random_info = copy(random_info)
 
         deterministic_info["cost"] += graph.nodes[current_node].links[reachable_node].deterministic["cost"]
         random_info["time"]["mean"] += graph.nodes[current_node].links[reachable_node].random["time"]["mean"]
