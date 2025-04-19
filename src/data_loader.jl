@@ -179,10 +179,10 @@ See also [`load_ta`](@ref), [`load_flowCost`](@ref), [`calculate_fft_coefficient
 """
 function load_graph_from_ta(tntp_file_dir::String, flow_file_dir::String, network_name::String, CV::Float64, toll_factor::Float64, length_factor::Float64)
     ta_data = load_ta(tntp_file_dir, network_name)
-    new_graph = Graph(Dict{Int,Node}(), Dict{String,Int}())
+    new_graph = Graph(Dict{Int, Node}(), Dict{String, Int}(), Dict{String, DefaultDict{Tuple{Int, Int, Int, Int}, Float64}}())
 
     for i in 1:length(ta_data.start_node)
-        find_or_add!(new_graph, string(ta_data.start_node[i]))
+        find_or_add_node!(new_graph, string(ta_data.start_node[i]))
     end
 
     cost_flow = load_flowCost(flow_file_dir)
@@ -199,7 +199,10 @@ function load_graph_from_ta(tntp_file_dir::String, flow_file_dir::String, networ
         mean = fft * (1 + ta_data.B[i] * (cost_flow[(start, dst)][2] / ta_data.capacity[i])^ta_data.power[i])
         variance = CV * abs(mean - fft)
         cost = mean + toll_factor * ta_data.toll[i] + length_factor * ta_data.link_length[i]
-        add_link!(new_graph, start, dst, cost, mean, variance)
+        
+        deterministic_info = Dict{String, Float64}("cost" => cost)
+        random_info = Dict{String, Dict{String, Float64}}("time" => Dict("mean" => mean, "variance" => variance))
+        add_link!(new_graph, start, dst, deterministic_info, random_info)
     end
     return new_graph
 end
