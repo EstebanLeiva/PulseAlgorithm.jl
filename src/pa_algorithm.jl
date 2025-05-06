@@ -147,7 +147,7 @@ end
 function run_pulse!(pulse_alg::Pulse,
                     info_update::Function,
                     pruning_functions::Vector{Function},
-                    pulse_score::Function,
+                    pulse_score::Function;
                     init_optimal_path::Vector{Int} = Vector{Int}(), 
                     init_objective::Float64 = Inf,
                     timer::Float64 = Inf)
