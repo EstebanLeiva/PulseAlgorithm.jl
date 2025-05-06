@@ -1,11 +1,11 @@
-struct Parameters
+mutable struct Parameters
     max_pulse_depth::Int
-    path_completion::Bool
-    exploration_order::Function
-    deterministic_weights::Vector{String}
-    random_weights::Dict{String, Vector{String}}
-    prep_deterministic_weights::Vector{String}
-    prep_random_weights::Dict{String, Vector{String}}
+    const path_completion::Bool
+    const exploration_order::Function
+    const deterministic_weights::Vector{String}
+    const random_weights::Dict{String, Vector{String}}
+    const prep_deterministic_weights::Vector{String}
+    const prep_random_weights::Dict{String, Vector{String}}
 end
 
 function Parameters(json_dir::String)
@@ -149,7 +149,11 @@ function run_pulse!(pulse_alg::Pulse,
                     pruning_functions::Vector{Function},
                     pulse_score::Function,
                     init_optimal_path::Vector{Int} = Vector{Int}(), 
-                    init_objective::Float64 = Inf)
+                    init_objective::Float64 = Inf,
+                    timer::Float64 = Inf)
+    timer_bool = isfinite(timer)
+    start_time = time()
+
     path = Vector{Int}()
     pulse_alg.current_optimal_path = init_optimal_path
     pulse_alg.current_optimal_objective = init_objective
@@ -163,18 +167,23 @@ function run_pulse!(pulse_alg::Pulse,
                     pulse_score)
                     
     while !isempty(pulse_alg.pulse_queue)
+        if timer_bool && (time() - start_time >= timer)
+            println("Timer expired. Stopping pulse search.")
+            break
+        end
         explore_path_info = dequeue!(pulse_alg.pulse_queue)
         link_dict = pulse_alg.problem.graph.nodes[explore_path_info.path[end]].links
         ordered_reachable_nodes = order_nodes(pulse_alg, link_dict, pulse_alg.parameters.exploration_order)
         for reachable_node in ordered_reachable_nodes
             if reachable_node ∉ explore_path_info.path
                 new_path = copy(explore_path_info.path)
-                new_path_info = info_update(pulse_alg.problem.graph,
-                                            new_path[end], 
-                                            reachable_node, 
-                                            new_path,
-                                            explore_path_info.deterministic, 
-                                            explore_path_info.random)  #TODO: check if the path_info has to be copied
+                new_path_det_info, new_path_rand_info = info_update(pulse_alg.problem.graph,
+                                                                    new_path[end], 
+                                                                    reachable_node, 
+                                                                    new_path,
+                                                                    explore_path_info.deterministic, 
+                                                                    explore_path_info.random)  #TODO: check if the path_info has to be copied
+                new_path_info = PathInformation(new_path, new_path_det_info, new_path_rand_info)
                 propagate_pulse!(pulse_alg, 
                                 reachable_node, 
                                 new_path_info,
@@ -185,6 +194,7 @@ function run_pulse!(pulse_alg::Pulse,
             end
         end
     end
+    ## TODO: if the timer terminates the search the path found is not optimal
     pulse_alg.optimal_path = pulse_alg.current_optimal_path
     pulse_alg.optimal_objective = pulse_alg.current_optimal_objective
 end

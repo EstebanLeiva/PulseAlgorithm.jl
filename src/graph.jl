@@ -103,9 +103,9 @@ end
 Return a dictionary with the link information.
 """
 function get_links_info(graph::Graph)
-    links = Dict{Tuple{Int, Int}, Tuple{Dict{String, Float64}, Dict{String, Float64}}}()
+    links = Dict{Tuple{Int, Int}, Tuple{Dict{String, Float64}, Dict{String, Dict{String, Float64}}}}()
     for (u, node) in graph.nodes
-        for (v,link) in node.links
+        for (v, link) in node.links
             links[(u, v)] = (link.deterministic, link.random)
         end
     end

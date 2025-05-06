@@ -95,11 +95,101 @@ function dijkstra(graph::Graph, target_node::Int, rand_var::String, rand_cost::S
             current = node
             while current !== -1
                 push!(path, current)
-                current = predecessor[current]
+                current = predecessors[current]
             end
             paths_dict[node] = path
         end
     end
 
     return cost, paths_dict
+end
+
+"""
+    dijkstra_between_nodes(graph::Graph, start_node::Int, target_node::Int, det_cost::String)
+
+Return the shortest path between two nodes in the graph with respect to det_cost.
+
+Priority Queue implementation of Dijkstra's algorithm between two nodes.
+"""
+function dijkstra(graph::Graph, start_node::Int, target_node::Int, det_cost::String)
+    dist = Vector{Float64}()
+    prev = Vector{Int}()
+    Q = PriorityQueue()
+    for v in sort(collect(keys(graph.nodes)))
+        push!(prev, -1)
+        if v == start_node
+            push!(dist, 0)
+        else
+            push!(dist, Inf)
+        end
+        enqueue!(Q, v, dist[v])
+    end
+    while !isempty(Q)
+        u = dequeue!(Q)
+        if u == target_node
+            break
+        end
+        for v in keys(graph.nodes[u].links)
+            alt = dist[u] + graph.nodes[u].links[v].deterministic[det_cost]
+            if alt < dist[v]
+                dist[v] = alt
+                prev[v] = u
+                Q[v] = alt
+            end
+        end
+    end
+    S = Vector{Int}()
+    u = target_node
+    if prev[u] != -1 || u == start_node
+        while u != -1
+            pushfirst!(S, u)  
+            u = prev[u]     
+        end
+    end
+    return S
+end
+
+"""
+    dijkstra_between_nodes(graph::Graph, start_node::Int, target_node::Int, rand_var::String, rand_cost::String)
+
+Return the shortest path between two nodes in the graph with respect to random cost.
+
+Priority Queue implementation of Dijkstra's algorithm between two nodes.
+"""
+function dijkstra(graph::Graph, start_node::Int, target_node::Int, rand_var::String, rand_cost::String)
+    dist = Vector{Float64}()
+    prev = Vector{Int}()
+    Q = PriorityQueue()
+    for v in sort(collect(keys(graph.nodes)))
+        push!(prev, -1)
+        if v == start_node
+            push!(dist, 0)
+        else
+            push!(dist, Inf)
+        end
+        enqueue!(Q, v, dist[v])
+    end
+    while !isempty(Q)
+        u = dequeue!(Q)
+        if u == target_node
+            break
+        end
+        for v in keys(graph.nodes[u].links)
+            alt = dist[u] + graph.nodes[u].links[v].random[rand_var][rand_cost]
+            if alt < dist[v]
+                dist[v] = alt
+                prev[v] = u
+                Q[v] = alt
+            end
+        end
+    end
+    S = Vector{Int}()
+    u = target_node
+    if prev[u] != -1 || u == start_node
+        while u != -1
+            pushfirst!(S, u)  
+            u = prev[u]     
+        end
+    end
+    return S
 end
