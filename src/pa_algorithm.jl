@@ -147,12 +147,10 @@ end
 function run_pulse!(pulse_alg::Pulse,
                     info_update::Function,
                     pruning_functions::Vector{Function},
-                    pulse_score::Function;
+                    pulse_score::Function,
                     init_optimal_path::Vector{Int} = Vector{Int}(), 
-                    init_objective::Float64 = Inf,
-                    timer::Float64 = Inf)
-    timer_bool = isfinite(timer)
-    start_time = time()
+                    init_objective::Float64 = Inf)
+    # Implement timer and test it
 
     path = Vector{Int}()
     pulse_alg.current_optimal_path = init_optimal_path
@@ -167,10 +165,6 @@ function run_pulse!(pulse_alg::Pulse,
                     pulse_score)
                     
     while !isempty(pulse_alg.pulse_queue)
-        if timer_bool && (time() - start_time >= timer)
-            println("Timer expired. Stopping pulse search.")
-            break
-        end
         explore_path_info = dequeue!(pulse_alg.pulse_queue)
         link_dict = pulse_alg.problem.graph.nodes[explore_path_info.path[end]].links
         ordered_reachable_nodes = order_nodes(pulse_alg, link_dict, pulse_alg.parameters.exploration_order)
